@@ -20,6 +20,27 @@ class PhoneInfogaModule(BaseModule):
     def __init__(self):
         self._process: asyncio.subprocess.Process | None = None
 
+    def check_health(self) -> tuple[str, str]:
+        import shutil
+        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        binary_name = "phoneinfoga"
+        local_binary = os.path.join(project_root, binary_name)
+        
+        has_binary = os.path.isfile(local_binary) or shutil.which(binary_name) is not None
+        if not has_binary:
+            return "error", "pi_binary_missing"
+            
+        numverify = os.getenv("NUMVERIFY_API_KEY")
+        apilayer = os.getenv("APILAYER_KEY")
+        
+        def is_valid(key):
+            return bool(key and key.lower() != "tu_api_key_aqui")
+            
+        if not is_valid(numverify) and not is_valid(apilayer):
+            return "warning", "pi_api_missing"
+            
+        return "ok", "pi_ok"
+
     async def run(self, target: str, callback) -> dict:
         callback(f"[*] Iniciando PhoneInfoga para el número: {target}\n")
 

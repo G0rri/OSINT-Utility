@@ -21,3 +21,11 @@ class BaseModule(ABC):
                  o almacenamiento futuro en base de datos.
         """
         pass
+
+    def check_health(self) -> tuple[str, str]:
+        """
+        Verifica si las dependencias del módulo (APIs, binarios) están listas.
+        Retorna una tupla (estado, mensaje_tooltip). 
+        Estado puede ser "ok" (🟢), "warning" (🟠), "error" (🔴) o "none" (sin indicador).
+        """
+        return "none", ""

@@ -15,7 +15,52 @@ if len(sys.argv) > 1 and sys.argv[1] == "--run-holehe":
 import asyncio
 from dotenv import load_dotenv
 import customtkinter as ctk
+import tkinter as tk
 from customtkinter import filedialog
+
+class ToolTip(object):
+    def __init__(self, widget, text):
+        self.widget = widget
+        self.text = text
+        self.tooltip_window = None
+        self.id = None
+        self.widget.bind("<Enter>", self.enter)
+        self.widget.bind("<Leave>", self.leave)
+
+    def enter(self, event=None):
+        self.schedule()
+
+    def leave(self, event=None):
+        self.unschedule()
+        self.hide()
+
+    def schedule(self):
+        self.unschedule()
+        self.id = self.widget.after(500, self.show)
+
+    def unschedule(self):
+        id = self.id
+        self.id = None
+        if id:
+            self.widget.after_cancel(id)
+
+    def show(self):
+        x = self.widget.winfo_rootx() + 20
+        y = self.widget.winfo_rooty() + self.widget.winfo_height() + 10
+        self.tooltip_window = tw = tk.Toplevel(self.widget)
+        tw.wm_overrideredirect(True)
+        tw.wm_geometry(f"+{x}+{y}")
+        
+        label = tk.Label(tw, text=self.text, justify='left',
+                         background="#2d2d2d", foreground="white", relief='solid', borderwidth=1,
+                         font=("Consolas", 10))
+        label.pack(ipadx=5, ipady=3)
+
+    def hide(self):
+        tw = self.tooltip_window
+        self.tooltip_window = None
+        if tw:
+            tw.destroy()
 
 # Cargar las claves de API del archivo .env al entorno de manera absoluta
 env_path = os.path.join(os.path.dirname(__file__), '.env')
@@ -32,6 +77,7 @@ from modules.wayback_module import WaybackModule
 from modules.metadata_module import MetadataModule
 from modules.security_headers_module import SecurityHeadersModule
 from modules.phoneinfoga_module import PhoneInfogaModule
+from core.i18n import Translator
 
 # Configuración global
 ctk.set_appearance_mode("dark")
@@ -42,7 +88,8 @@ class OSINTApp(ctk.CTk):
         super().__init__()
         self.loop = loop
         
-        self.title("OSINT V2 - Panel Central Asíncrono")
+        self.translator = Translator("ES")
+        self.title(self.translator.get("app_title"))
         self.geometry("950x740")  # Ligeramente más alta
         self.protocol("WM_DELETE_WINDOW", self.on_closing)
         
@@ -60,6 +107,22 @@ class OSINTApp(ctk.CTk):
         
         self.current_task = None
         self.is_running = True
+        self._rebuilding = False  # Guardia para el cambio de idioma
+
+        # Mapa nombre_herramienta → módulo (evita cadenas if/elif en runtime)
+        self._module_map = {
+            "Holehe":          self.holehe_module,
+            "Sherlock":        self.sherlock_module,
+            "PhoneInfoga":     self.phoneinfoga_module,
+            "VirusTotal":      self.virustotal_module,
+            "WHOIS":           self.whois_module,
+            "Subdominios":     self.subdomain_module,
+            "PortScanner":     self.port_scanner_module,
+            "SecurityHeaders": self.security_headers_module,
+            "Wayback":         self.wayback_module,
+            "Metadatos":       self.metadata_module,
+        }
+
         self._build_ui()
 
     def _build_ui(self):
@@ -71,41 +134,82 @@ class OSINTApp(ctk.CTk):
         self.header_frame.grid(row=0, column=0, padx=20, pady=(20, 10), sticky="ew")
         self.header_frame.grid_columnconfigure(0, weight=1)
         
+        # Opciones de idioma
+        self.lang_var = ctk.StringVar(value=self.translator.lang)
+        self.lang_menu = ctk.CTkOptionMenu(
+            self.header_frame, 
+            values=["ES", "EN"], 
+            variable=self.lang_var, 
+            command=self._change_language,
+            width=60,
+            height=25
+        )
+        self.lang_menu.grid(row=0, column=4, sticky="ne", padx=5, pady=5)
+        
         # Tabview para categorizar herramientas
         self.tabview = ctk.CTkTabview(self.header_frame, command=self._on_tab_change, height=80)
-        self.tabview.grid(row=0, column=0, columnspan=5, padx=10, pady=(5, 10), sticky="ew")
+        self.tabview.grid(row=1, column=0, columnspan=5, padx=10, pady=(5, 10), sticky="ew")
         
-        self.tabview.add("Identidades")
-        self.tabview.add("Red")
-        self.tabview.add("Forense")
+        self.tabview.add(self.translator.get("tab_identities"))
+        self.tabview.add(self.translator.get("tab_network"))
+        self.tabview.add(self.translator.get("tab_forensics"))
         
-        # Pestaña Identidades (Holehe, Sherlock)
+        def _add_tool_radio(tab_name, text_base, var, value, module, padx=10):
+            status, msg_key = module.check_health()
+            msg = self.translator.get(msg_key) if msg_key else ""
+            text_color = None
+            if status == "ok":
+                emoji = " 🟢"
+                text_color = "#4CAF50" # Verde
+            elif status == "warning":
+                emoji = " 🟠"
+                text_color = "#FFA500" # Naranja
+            elif status == "error":
+                emoji = " 🔴"
+                text_color = "#F44336" # Rojo
+            else:
+                emoji = ""
+                
+            rb = ctk.CTkRadioButton(self.tabview.tab(tab_name), text=text_base + emoji, variable=var, value=value, command=self._on_tool_change)
+            if text_color:
+                rb.configure(text_color=text_color)
+            rb.pack(side="left", padx=padx, pady=10)
+            
+            if msg:
+                # Asociar el tooltip al propio label del widget y a la bolita
+                ToolTip(rb, msg)
+                # CustomTkinter usa componentes internos, para asegurar que el hover funcione sobre todo el widget:
+                for child in rb.winfo_children():
+                    ToolTip(child, msg)
+            return rb
+            
+        # Pestaña Identidades
         self.identidades_var = ctk.StringVar(value="Holehe")
-        ctk.CTkRadioButton(self.tabview.tab("Identidades"), text="Holehe (Correo)", variable=self.identidades_var, value="Holehe", command=self._on_tool_change).pack(side="left", padx=20, pady=10)
-        ctk.CTkRadioButton(self.tabview.tab("Identidades"), text="Sherlock (Username)", variable=self.identidades_var, value="Sherlock", command=self._on_tool_change).pack(side="left", padx=20, pady=10)
-        ctk.CTkRadioButton(self.tabview.tab("Identidades"), text="PhoneInfoga (Teléfono)", variable=self.identidades_var, value="PhoneInfoga", command=self._on_tool_change).pack(side="left", padx=20, pady=10)
+        _add_tool_radio(self.translator.get("tab_identities"), self.translator.get("holehe_desc"), self.identidades_var, "Holehe", self.holehe_module, padx=20)
+        _add_tool_radio(self.translator.get("tab_identities"), self.translator.get("sherlock_desc"), self.identidades_var, "Sherlock", self.sherlock_module, padx=20)
+        _add_tool_radio(self.translator.get("tab_identities"), self.translator.get("phoneinfoga_desc"), self.identidades_var, "PhoneInfoga", self.phoneinfoga_module, padx=20)
         
-        # Pestaña Red (VirusTotal, WHOIS, Subdominios, Escáner de Puertos)
+        # Pestaña Red
         self.red_var = ctk.StringVar(value="VirusTotal")
-        ctk.CTkRadioButton(self.tabview.tab("Red"), text="VirusTotal", variable=self.red_var, value="VirusTotal", command=self._on_tool_change).pack(side="left", padx=10, pady=10)
-        ctk.CTkRadioButton(self.tabview.tab("Red"), text="WHOIS/DNS", variable=self.red_var, value="WHOIS", command=self._on_tool_change).pack(side="left", padx=10, pady=10)
-        ctk.CTkRadioButton(self.tabview.tab("Red"), text="Subdominios", variable=self.red_var, value="Subdominios", command=self._on_tool_change).pack(side="left", padx=10, pady=10)
-        ctk.CTkRadioButton(self.tabview.tab("Red"), text="Puertos", variable=self.red_var, value="PortScanner", command=self._on_tool_change).pack(side="left", padx=10, pady=10)
-        ctk.CTkRadioButton(self.tabview.tab("Red"), text="Cabeceras HTTP", variable=self.red_var, value="SecurityHeaders", command=self._on_tool_change).pack(side="left", padx=10, pady=10)
+        _add_tool_radio(self.translator.get("tab_network"), self.translator.get("virustotal_desc"), self.red_var, "VirusTotal", self.virustotal_module)
+        _add_tool_radio(self.translator.get("tab_network"), self.translator.get("whois_desc"), self.red_var, "WHOIS", self.whois_module)
+        _add_tool_radio(self.translator.get("tab_network"), self.translator.get("subdomains_desc"), self.red_var, "Subdominios", self.subdomain_module)
+        _add_tool_radio(self.translator.get("tab_network"), self.translator.get("ports_desc"), self.red_var, "PortScanner", self.port_scanner_module)
+        _add_tool_radio(self.translator.get("tab_network"), self.translator.get("headers_desc"), self.red_var, "SecurityHeaders", self.security_headers_module)
         
-        # Pestaña Forense (Metadatos, Wayback Machine)
+        # Pestaña Forense
         self.forense_var = ctk.StringVar(value="Metadatos")
-        ctk.CTkRadioButton(self.tabview.tab("Forense"), text="Metadatos (Imagen/PDF)", variable=self.forense_var, value="Metadatos", command=self._on_tool_change).pack(side="left", padx=20, pady=10)
-        ctk.CTkRadioButton(self.tabview.tab("Forense"), text="Wayback Machine (URL/Dominio)", variable=self.forense_var, value="Wayback", command=self._on_tool_change).pack(side="left", padx=20, pady=10)
+        _add_tool_radio(self.translator.get("tab_forensics"), self.translator.get("metadata_desc"), self.forense_var, "Metadatos", self.metadata_module, padx=20)
+        _add_tool_radio(self.translator.get("tab_forensics"), self.translator.get("wayback_desc"), self.forense_var, "Wayback", self.wayback_module, padx=20)
 
         # Contenedor Inferior del Header para Buscador (Barra Entry + Botones)
         self.search_bar_frame = ctk.CTkFrame(self.header_frame, fg_color="transparent")
-        self.search_bar_frame.grid(row=1, column=0, columnspan=5, padx=10, pady=(0, 10), sticky="ew")
+        self.search_bar_frame.grid(row=2, column=0, columnspan=5, padx=10, pady=(0, 10), sticky="ew")
         self.search_bar_frame.grid_columnconfigure(0, weight=1)
 
         self.target_entry = ctk.CTkEntry(
             self.search_bar_frame, 
-            placeholder_text="Ingresa el correo (para Holehe)"
+            placeholder_text=self.translator.get("placeholder_holehe")
         )
         self.target_entry.grid(row=0, column=0, padx=(0, 5), pady=0, sticky="ew")
         
@@ -120,14 +224,14 @@ class OSINTApp(ctk.CTk):
 
         self.btn_search = ctk.CTkButton(
             self.search_bar_frame, 
-            text="Buscar", 
+            text=self.translator.get("search_btn"), 
             command=self.run_tool_action
         )
         self.btn_search.grid(row=0, column=2, padx=(0, 10), pady=0)
         
         self.btn_stop = ctk.CTkButton(
             self.search_bar_frame, 
-            text="Detener", 
+            text=self.translator.get("stop_btn"), 
             command=self.cancel_action,
             fg_color="red",
             state="disabled"
@@ -153,7 +257,7 @@ class OSINTApp(ctk.CTk):
         
         self.btn_clear = ctk.CTkButton(
             self.footer_frame,
-            text="Limpiar Consola",
+            text=self.translator.get("clear_btn"),
             fg_color="#8B0000",
             hover_color="#A52A2A",
             width=140,
@@ -163,7 +267,7 @@ class OSINTApp(ctk.CTk):
         
         self.btn_save = ctk.CTkButton(
             self.footer_frame,
-            text="Guardar Reporte",
+            text=self.translator.get("save_btn"),
             fg_color="#006400",
             hover_color="#228B22",
             width=140,
@@ -181,52 +285,72 @@ class OSINTApp(ctk.CTk):
             self.target_entry.insert(0, file_path)
 
     def _on_tab_change(self):
-        self._on_tool_change()
+        if not getattr(self, '_rebuilding', False):
+            self._on_tool_change()
+
+    def _change_language(self, new_lang: str):
+        self.translator.load_lang(new_lang)
+        self.title(self.translator.get("app_title"))
+
+        # Flag de guardia: evita que _on_tab_change / _on_tool_change
+        # accedan a self.tabview mientras está siendo destruido y reconstruido.
+        self._rebuilding = True
+
+        # Destruir todos los hijos de la ventana raíz
+        for widget in self.winfo_children():
+            widget.destroy()
+
+        # Diferir la construcción un ciclo de eventos para que Tkinter
+        # procese completamente la destrucción antes de crear nuevos widgets.
+        def _do_rebuild():
+            self._build_ui()
+            self._rebuilding = False
+
+        self.after(0, _do_rebuild)
 
     def _get_active_tool_name(self):
         current_tab = self.tabview.get()
-        if current_tab == "Identidades":
+        if current_tab == self.translator.get("tab_identities"):
             return self.identidades_var.get()
-        elif current_tab == "Red":
+        elif current_tab == self.translator.get("tab_network"):
             return self.red_var.get()
-        elif current_tab == "Forense":
+        elif current_tab == self.translator.get("tab_forensics"):
             return self.forense_var.get()
         return ""
 
     def _on_tool_change(self):
         choice = self._get_active_tool_name()
-        
+
         # Mitigación para el bug de CustomTkinter donde el placeholder se vuelve texto editable
         def set_placeholder(text):
             current_val = self.target_entry.get()
-            self.focus() # Quitar foco del entry temporalmente
+            self.focus()  # Quitar foco del entry temporalmente
             self.target_entry.configure(placeholder_text=text)
             if not current_val:
                 self.target_entry.delete(0, "end")
 
+        # Mapa directo tool → clave i18n del placeholder (O(1) vs cadena if/elif)
+        _placeholder_keys = {
+            "Holehe":          "placeholder_holehe",
+            "Sherlock":        "placeholder_sherlock",
+            "PhoneInfoga":     "placeholder_phoneinfoga",
+            "VirusTotal":      "placeholder_virustotal",
+            "WHOIS":           "placeholder_whois",
+            "Subdominios":     "placeholder_subdomains",
+            "PortScanner":     "placeholder_ports",
+            "SecurityHeaders": "placeholder_headers",
+            "Wayback":         "placeholder_wayback",
+            "Metadatos":       "placeholder_metadata",
+        }
+
         if choice == "Metadatos":
             self.btn_file.configure(state="normal")
-            set_placeholder("Añade la ruta del archivo (o usa el botón 📂)")
         else:
             self.btn_file.configure(state="disabled")
-            if choice == "Holehe":
-                set_placeholder("Ingresa el correo (para Holehe)")
-            elif choice == "Sherlock":
-                set_placeholder("Ingresa el username (para Sherlock)")
-            elif choice == "PhoneInfoga":
-                set_placeholder("Ingresa el teléfono (ej: +34600123456)")
-            elif choice == "VirusTotal":
-                set_placeholder("Ingresa IP o Dominio (para VirusTotal)")
-            elif choice == "WHOIS":
-                set_placeholder("Ingresa el dominio (para WHOIS)")
-            elif choice == "Subdominios":
-                set_placeholder("Ingresa el dominio raíz (para Subdominios)")
-            elif choice == "PortScanner":
-                set_placeholder("Ingresa IP o Dominio (para Escáner de Puertos)")
-            elif choice == "SecurityHeaders":
-                set_placeholder("Ingresa URL o Dominio (para Cabeceras HTTP)")
-            elif choice == "Wayback":
-                set_placeholder("Ingresa URL o Dominio (para Wayback Machine)")
+
+        key = _placeholder_keys.get(choice)
+        if key:
+            set_placeholder(self.translator.get(key))
 
     def log_to_console(self, text: str):
         self.console_textbox.configure(state="normal")
@@ -299,28 +423,9 @@ class OSINTApp(ctk.CTk):
         self.btn_clear.configure(state="disabled")
         self.btn_save.configure(state="disabled")
         
-        # Resolving Active Module
-        if selected_tool == "Holehe":
-            active_module = self.holehe_module
-        elif selected_tool == "Sherlock":
-            active_module = self.sherlock_module
-        elif selected_tool == "PhoneInfoga":
-            active_module = self.phoneinfoga_module
-        elif selected_tool == "VirusTotal":
-            active_module = self.virustotal_module
-        elif selected_tool == "WHOIS":
-            active_module = self.whois_module
-        elif selected_tool == "Subdominios":
-            active_module = self.subdomain_module
-        elif selected_tool == "PortScanner":
-            active_module = self.port_scanner_module
-        elif selected_tool == "SecurityHeaders":
-            active_module = self.security_headers_module
-        elif selected_tool == "Wayback":
-            active_module = self.wayback_module
-        elif selected_tool == "Metadatos":
-            active_module = self.metadata_module
-        else:
+        # Resolver módulo activo mediante dict (O(1), sin cadena if/elif)
+        active_module = self._module_map.get(selected_tool)
+        if active_module is None:
             self.log_to_console("[-] Módulo no detectado.\n")
             self._restore_ui_controls()
             return

@@ -9,6 +9,13 @@ class SherlockModule(BaseModule):
     def __init__(self):
         self._process = None
 
+    def check_health(self) -> tuple[str, str]:
+        import importlib.util
+        is_installed = importlib.util.find_spec("sherlock_project") is not None or importlib.util.find_spec("sherlock") is not None
+        if is_installed:
+            return "none", ""
+        return "error", "sherlock_missing"
+
     async def run(self, target: str, callback) -> dict:
         callback(f"[*] Iniciando búsqueda Sherlock para el usuario: {target}\n")
         

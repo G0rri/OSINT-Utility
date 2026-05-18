@@ -24,7 +24,9 @@ class SecurityHeadersModule(BaseModule):
         response = None
         
         try:
-            # Deshabilitamos verify=False solo a nivel de módulo para ignorar errores SSL y llegar a las cabeceras
+            # verify=False permite analizar sitios con certificados SSL inválidos/autofirmados.
+            # Se avisa explícitamente al usuario para transparencia.
+            callback("[*] Nota: Verificación SSL desactivada para alcanzar todos los servidores.\n")
             async with httpx.AsyncClient(verify=False) as client:
                 try:
                     response = await client.head(target, headers=headers_req, follow_redirects=True, timeout=10.0)

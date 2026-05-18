@@ -14,6 +14,12 @@ class VirustotalModule(BaseModule):
         # Lee la API Key desde el entorno (carga desde el archivo .env)
         self.api_key = os.getenv("VIRUSTOTAL_API_KEY")
 
+    def check_health(self) -> tuple[str, str]:
+        is_valid = bool(self.api_key and self.api_key.lower() != "tu_api_key_aqui")
+        if is_valid:
+            return "ok", "vt_api_ok"
+        return "error", "vt_api_missing"
+
     async def run(self, target: str, callback) -> dict:
         if not self.api_key or self.api_key == "TU_API_KEY_AQUI":
             callback("[-] Error crítico: No se encontró VIRUSTOTAL_API_KEY en el archivo .env\n")

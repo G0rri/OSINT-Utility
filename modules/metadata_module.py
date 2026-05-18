@@ -2,14 +2,19 @@ import asyncio
 import os
 from core.base_module import BaseModule
 
+_PIL_AVAILABLE = False
+_PYPDF2_AVAILABLE = False
+
 try:
     from PIL import Image
     from PIL.ExifTags import TAGS, GPSTAGS
+    _PIL_AVAILABLE = True
 except ImportError:
     pass
 
 try:
     from PyPDF2 import PdfReader
+    _PYPDF2_AVAILABLE = True
 except ImportError:
     pass
 
@@ -17,9 +22,18 @@ class MetadataModule(BaseModule):
     """
     Módulo nativo asíncrono para extracción forense de metadatos locales (Imágenes EXIF, PDF).
     """
+
+    def check_health(self) -> tuple[str, str]:
+        if _PIL_AVAILABLE and _PYPDF2_AVAILABLE:
+            return "ok", "metadata_ok"
+        if not _PIL_AVAILABLE and not _PYPDF2_AVAILABLE:
+            return "error", "metadata_deps_missing"
+        return "warning", "metadata_partial"
+
     async def run(self, target: str, callback) -> dict:
         callback(f"[*] Analizando metadatos del archivo local: {target}\n")
-        
+
+
         # Validador rápido (aunque main.py debe filtrarlo antes)
         if not os.path.exists(target):
             callback(f"[-] Error crítico: El archivo '{target}' no existe o fue borrado.\n")

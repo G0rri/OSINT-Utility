@@ -5,6 +5,13 @@ import subprocess
 from core.base_module import BaseModule
 
 class HoleheModule(BaseModule):
+    def check_health(self) -> tuple[str, str]:
+        import importlib.util
+        is_installed = importlib.util.find_spec("holehe") is not None
+        if is_installed:
+            return "ok", "holehe_ok"
+        return "error", "holehe_missing"
+
     async def run(self, target: str, callback) -> dict:
         callback(f"[*] Iniciando búsqueda Holehe para el email: {target}\n")
         

@@ -8,3 +8,5 @@ Pillow
 PyPDF2
 psutil
 python-dotenv
+pyvis==0.3.2
+networkx
