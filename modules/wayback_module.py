@@ -8,7 +8,7 @@ class WaybackModule(BaseModule):
         
         # Atacamos a la base de datos profunda pidiendo solo 1 resultado
         url = f"http://web.archive.org/cdx/search/cdx?url={target}&output=json&limit=1&fl=timestamp,original"
-        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+        headers = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36"}
         
         async with httpx.AsyncClient() as client:
             try:

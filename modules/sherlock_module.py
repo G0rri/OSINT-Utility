@@ -1,56 +1,75 @@
 import asyncio
-import io
-import contextlib
 import sys
-import signal
-
+import psutil
 from core.base_module import BaseModule
 
 class SherlockModule(BaseModule):
+    name = "Sherlock"
+
+    def __init__(self):
+        self._process = None
+
     async def run(self, target: str, callback) -> dict:
         callback(f"[*] Iniciando búsqueda Sherlock para el usuario: {target}\n")
         
-        try:
-            try:
-                from sherlock import sherlock as sherlock_core
-            except ImportError:
-                from sherlock_project import sherlock as sherlock_core
-        except ImportError:
-            callback("[-] Error: Sherlock no se encuentra instalado.\n")
-            return {"status": "error", "error": "Not installed"}
-
-        # Respaldos
-        original_argv = sys.argv
-        original_signal = signal.signal
-        
-        # Inyección de argumentos CLI
-        sys.argv = ["sherlock", target, "--print-found", "--timeout", "3", "--output", "NUL"] 
-
-        output_buffer = io.StringIO()
+        # Lanzar sherlock como proceso usando el módulo python
+        # El timeout es para acotar cada petición de sitio, --no-txt evita el archivo generado.
+        cmd = [sys.executable, "-m", "sherlock_project", target, "--print-found", "--timeout", "3", "--no-txt"]
         
         try:
-            # Monkey-patching: Desactivamos el registro de señales para evitar el crasheo en hilos secundarios
-            signal.signal = lambda *args, **kwargs: None
+            self._process = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
             
-            with contextlib.redirect_stdout(output_buffer):
-                if asyncio.iscoroutinefunction(sherlock_core.main):
-                    await sherlock_core.main()
-                else:
-                    await asyncio.to_thread(sherlock_core.main)
+            async def _stream_reader(stream, prefix=""):
+                while True:
+                    line_bytes = await stream.readline()
+                    if not line_bytes:
+                        break
+                    line = line_bytes.decode('utf-8', errors='replace').rstrip('\r\n')
+                    if line:
+                        callback(f"{prefix}{line}\n")
+                        await asyncio.sleep(0.001)
+                        
+            # Leer concurremente
+            await asyncio.gather(
+                _stream_reader(self._process.stdout, prefix="    "),
+                _stream_reader(self._process.stderr, prefix="    [!] ")
+            )
+            await self._process.wait()
+            
+        except asyncio.CancelledError:
+            callback("\n[!] Búsqueda de Sherlock detenida por el usuario...\n")
+            self._kill_process_tree()
+            raise
         except Exception as e:
-            if not isinstance(e, SystemExit):
-                callback(f"[-] Error interno en Sherlock: {e}\n")
-                return {"status": "error", "error": str(e)}
+            callback(f"[-] Error al lanzar Sherlock: {e}\n")
+            return {"status": "error", "error": str(e)}
         finally:
-            # Restauración absoluta
-            sys.argv = original_argv
-            signal.signal = original_signal
-
-        raw_output = output_buffer.getvalue()
-        for line in raw_output.splitlines():
-            if line.strip(): 
-                callback(f"    {line}\n")
-                await asyncio.sleep(0.005)
+            self._process = None
 
         callback("\n[+] Búsqueda en Sherlock finalizada.\n")
-        return {"status": "success", "target": target, "raw_output": raw_output}
+        return {"status": "success", "target": target}
+
+    def _kill_process_tree(self):
+        if self._process is None:
+            return
+        pid = self._process.pid
+        try:
+            parent = psutil.Process(pid)
+            children = parent.children(recursive=True)
+            for child in children:
+                try:
+                    child.kill()
+                except psutil.NoSuchProcess:
+                    pass
+            try:
+                parent.kill()
+            except psutil.NoSuchProcess:
+                pass
+        except psutil.NoSuchProcess:
+            pass
+        except Exception:
+            pass

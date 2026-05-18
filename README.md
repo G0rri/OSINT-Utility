@@ -13,7 +13,7 @@ Gracias a su arquitectura asíncrona basada en `asyncio` y su interfaz gráfica 
 ## 🚀 Características Principales
 
 - **Interfaz Gráfica Moderna (GUI):** Olvídate de recordar comandos. Todo se gestiona mediante una interfaz limpia y oscura.
-- **Ejecución Asíncrona:** Realiza búsquedas sin bloquear la interfaz de usuario.
+- **Ejecución Asíncrona Aislada:** Realiza búsquedas complejas mediante subprocesos nativos que no bloquean la interfaz de usuario. Tienes control total para cancelar escaneos en milisegundos y de manera limpia, sin dejar procesos "zombies" en tu sistema.
 - **Arquitectura Modular:** Diseñada mediante módulos (plugins), lo que facilita agregar o modificar herramientas de investigación.
 - **Todo en Uno:** Agrupa herramientas populares de OSINT en un solo panel de control.
 - **Exportación de Resultados:** (En constante desarrollo) Facilidad para visualizar las cargas de respuesta de cada análisis.
@@ -46,22 +46,30 @@ La aplicación se divide en las siguientes áreas de inteligencia:
 
 ## ⚙️ Instalación y Configuración
 
-El proyecto está diseñado para funcionar en un entorno **Windows** con la mayor facilidad posible.
+El proyecto está diseñado para funcionar nativamente en entornos **Linux** de la forma más sencilla posible.
 
-1. **Clonar el repositorio:**
+1. **Requisitos Previos del Sistema (Linux):**
+   Asegúrate de tener instalada la librería `tk` nativa en tu sistema, la cual es requerida para dibujar la interfaz gráfica.
+   - En **Arch Linux / CachyOS**: `sudo pacman -S tk`
+   - En **Ubuntu / Debian**: `sudo apt install python3-tk`
+
+2. **Clonar el repositorio:**
    ```bash
    git clone https://github.com/tu-usuario/OSINT-Utility.git
    cd OSINT-Utility
    ```
 
-2. **Configuración de APIs (Obligatorio para módulos externos):**
+3. **Configuración de APIs (Obligatorio para módulos externos):**
    Cambia el nombre del archivo `.env.example` a `.env` y rellena tus claves de API reales dentro del fichero. (Por ejemplo, tu clave de VirusTotal o de APILayer/Numverify).
 
-3. **Ejecución Automática (Doble Clic):**
-   Abre la carpeta del proyecto y haz doble clic sobre el archivo `iniciar.bat`.
-   *Ese script inteligente creará el entorno virtual (venv), instalará todos los requerimientos de `requirements.txt` automáticamente y lanzará la aplicación visual. ¡No necesitas tocar la terminal!*
+4. **Ejecución Automática:**
+   Dale permisos de ejecución al script de inicio y ejecútalo:
+   ```bash
+   chmod +x start.sh
+   ./start.sh
+   ```
+   *Ese script inteligente creará el entorno virtual (venv), instalará todas las dependencias (como `python-dotenv`, `customtkinter`, etc.), descargará automáticamente el binario de PhoneInfoga para Linux si te falta y lanzará la aplicación visual. ¡No necesitas hacer nada más!*
 
-**Nota sobre PhoneInfoga:** El repositorio incluye (o debes descargar) el binario oficial `phoneinfoga.exe` en la raíz del proyecto para que ese módulo funcione correctamente.
 
 ---
 

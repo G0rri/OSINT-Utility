@@ -7,3 +7,4 @@ dnspython
 Pillow
 PyPDF2
 psutil
+python-dotenv

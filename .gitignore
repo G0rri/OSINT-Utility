@@ -118,11 +118,17 @@ cython_debug/
 # VS Code
 .vscode/
 
-# Windows
-Thumbs.db
-desktop.ini
-$RECYCLE.BIN/
-
+# Linux Desktop
+*~
+.directory
+.Trash-*/
 .env
 
-.env
+# Binarios descargados de terceros
+phoneinfoga
+phoneinfoga.tar.gz
+*.exe
+
+# Reportes guardados o outputs temporales
+*.txt
+!requirements.txt

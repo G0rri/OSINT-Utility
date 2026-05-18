@@ -20,16 +20,13 @@ class HoleheModule(BaseModule):
         
         try:
             # Envolvemos subprocess.run en to_thread para no congelar la GUI.
-            # CREATE_NO_WINDOW es vital en Windows para que no salte una terminal extra al compilar en .exe
             def run_process():
-                flags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
                 return subprocess.run(
                     cmd, 
                     capture_output=True, 
                     text=True, 
                     encoding='utf-8', 
-                    errors='replace', 
-                    creationflags=flags
+                    errors='replace'
                 )
 
             process = await asyncio.to_thread(run_process)

@@ -27,7 +27,7 @@ class PhoneInfogaModule(BaseModule):
         # Busca primero en la raíz del proyecto (junto a main.py),
         # luego en el PATH del sistema.
         project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        binary_name = "phoneinfoga.exe" if sys.platform == "win32" else "phoneinfoga"
+        binary_name = "phoneinfoga"
         local_binary = os.path.join(project_root, binary_name)
 
         if os.path.isfile(local_binary):
