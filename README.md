@@ -29,21 +29,25 @@ Gracias a su arquitectura asíncrona basada en `asyncio` y su interfaz gráfica 
 La aplicación se divide en las siguientes áreas de inteligencia:
 
 ### 🌐 Red
+
 - **WHOIS & DNS:** Obtiene información de registro de dominios y enumera los registros DNS más importantes (A, MX, TXT, etc.).
 - **Escáner de Puertos:** Comprueba los puertos lógicos de un host o IP usando la base de datos de Shodan (InternetDB, sin cuenta necesaria).
 - **Enumeración de Subdominios:** Encuentra subdominios asociados a un dominio principal usando crt.sh y HackerTarget como fuentes. Genera automáticamente un **grafo interactivo de red** en el navegador para visualizar las relaciones entre el dominio raíz y sus subdominios.
 
 ### 🛡️ Análisis Web
+
 - **Wayback Machine:** Recupera el historial de un sitio web, permitiéndote investigar cómo era o qué contenía antes de ser modificado.
-- **Cabeceras de Seguridad HTTP:** Analiza los *Security Headers* implementados en un sitio y detecta configuraciones faltantes o vulnerables (HSTS, CSP, X-Frame-Options, etc.).
+- **Cabeceras de Seguridad HTTP:** Analiza los _Security Headers_ implementados en un sitio y detecta configuraciones faltantes o vulnerables (HSTS, CSP, X-Frame-Options, etc.).
 - **VirusTotal:** Consulta la reputación de dominios e IPs contra los motores de análisis de la plataforma líder del mercado (requiere API Key).
 
 ### 👤 Identidades
+
 - **Sherlock:** Rastrea un nombre de usuario a través de cientos de foros y redes sociales.
 - **Holehe:** Comprueba un correo electrónico contra múltiples sitios web basándose en funciones de recuperación de contraseñas.
 - **PhoneInfoga:** Escanea números de teléfono a nivel mundial para obtener su formato, operador y tipo de línea.
 
 ### 📄 Forense Local
+
 - **Lector de Metadatos:** Extrae información EXIF oculta de imágenes (JPG, PNG, TIFF, WEBP) y documentos PDF: nombre del creador, modelo de cámara, coordenadas GPS, fechas, software utilizado, etc.
 
 ---
@@ -74,11 +78,11 @@ Renombra el archivo `.env.example` a `.env` y rellena tus claves reales:
 cp .env.example .env
 ```
 
-| Variable | Módulo | Obligatoria |
-|---|---|---|
-| `VIRUSTOTAL_API_KEY` | VirusTotal | Sí (el módulo no funciona sin ella) |
-| `NUMVERIFY_API_KEY` | PhoneInfoga | No (mejora los resultados) |
-| `APILAYER_KEY` | PhoneInfoga | No (mejora los resultados) |
+| Variable             | Módulo      | Obligatoria                         |
+| -------------------- | ----------- | ----------------------------------- |
+| `VIRUSTOTAL_API_KEY` | VirusTotal  | Sí (el módulo no funciona sin ella) |
+| `NUMVERIFY_API_KEY`  | PhoneInfoga | No (mejora los resultados)          |
+| `APILAYER_KEY`       | PhoneInfoga | No (mejora los resultados)          |
 
 ### 4. Ejecutar
 
