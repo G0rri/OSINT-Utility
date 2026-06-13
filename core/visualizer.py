@@ -1,38 +1,31 @@
+# core/visualizer.py
+import logging
 import os
-<<<<<<< HEAD
+import subprocess
 import tempfile
 import webbrowser
 
-=======
-import subprocess
-import tempfile
->>>>>>> 7724dea621a204eb8ef7157c74d8431613d61dc8
 from pyvis.network import Network
+
+logger: logging.Logger = logging.getLogger(__name__)
 
 
 class NetworkVisualizer:
-    """
-    Herramienta auxiliar para generar grafos interactivos de relaciones en HTML.
-    """
+    """Herramienta auxiliar para generar grafos interactivos de relaciones en HTML."""
 
     @staticmethod
     def generate_subdomain_graph(root_domain: str, subdomains: list[str]) -> str:
+        """Genera un grafo interactivo conectando el dominio raíz con sus subdominios.
+
+        Guarda el resultado en un archivo temporal y retorna su ruta absoluta.
         """
-        Genera un grafo interactivo conectando el dominio raíz con sus subdominios
-        y lo guarda en un archivo temporal.
-        Retorna la ruta absoluta del archivo generado.
-        """
-        # cdn_resources='inline' incrusta vis.js completo en el HTML
-        # para que funcione correctamente con file:// sin necesidad de internet.
-        net = Network(
+        # El tipado interno de pyvis está desactualizado en stubs de terceros (ej: Pylance),
+        # forzamos 'type: ignore' en los parámetros mal mapeados de su API nativa.
+        net: Network = Network(
             height="100vh",
             width="100%",
             bgcolor="#1a1a2e",
-<<<<<<< HEAD
             font_color="#e0e0e0",  # type: ignore
-=======
-            font_color="#e0e0e0",
->>>>>>> 7724dea621a204eb8ef7157c74d8431613d61dc8
             cdn_resources="in_line",
         )
 
@@ -41,11 +34,7 @@ class NetworkVisualizer:
             root_domain,
             label=root_domain,
             title="<b>🎯 Dominio Raíz</b>",
-<<<<<<< HEAD
             color={"background": "#E50914", "border": "#FF4444"},  # type: ignore
-=======
-            color={"background": "#E50914", "border": "#FF4444"},
->>>>>>> 7724dea621a204eb8ef7157c74d8431613d61dc8
             size=40,
             shape="diamond",
         )
@@ -57,17 +46,12 @@ class NetworkVisualizer:
                     sub,
                     label=sub,
                     title=f"<b>Subdominio:</b> {sub}",
-<<<<<<< HEAD
                     color={"background": "#1a6db5", "border": "#569CD6"},  # type: ignore
-=======
-                    color={"background": "#1a6db5", "border": "#569CD6"},
->>>>>>> 7724dea621a204eb8ef7157c74d8431613d61dc8
                     size=18,
                 )
                 net.add_edge(root_domain, sub, color="#444466", width=1)
 
         # Configurar opciones de física para una visualización más rápida y estable
-        # Desactivar la física tras la estabilización reduce el tiempo de carga
         net.set_options("""
         {
           "physics": {
@@ -94,20 +78,20 @@ class NetworkVisualizer:
         }
         """)
 
-        # Generar un archivo temporal seguro en /tmp
-        temp_file = tempfile.NamedTemporaryFile(
+        # Generar un archivo temporal seguro en /tmp utilizando administradores de contexto with
+        file_path: str = ""
+        with tempfile.NamedTemporaryFile(
             delete=False,
             suffix=".html",
             prefix=f"osint_graph_{root_domain}_",
-        )
-        file_path = temp_file.name
-        temp_file.close()
+        ) as temp_file:
+            file_path = temp_file.name
 
         net.write_html(file_path)
 
         # --- Inyectar botón flotante de guardar ---
-        save_filename = f"osint_graph_{root_domain}.html"
-        save_button_html = f"""
+        save_filename: str = f"osint_graph_{root_domain}.html"
+        save_button_html: str = f"""
 <style>
   #osint-save-btn {{
     position: fixed;
@@ -157,47 +141,56 @@ function saveGraph() {{
 </script>
 </body>"""
 
-        with open(file_path, "r", encoding="utf-8") as f:
-            html_content = f.read()
+        try:
+            with open(file_path, "r", encoding="utf-8") as f:
+                html_content: str = f.read()
 
-        # Reemplazar el </body> final para inyectar el botón antes de cerrar
-        html_content = html_content.replace("</body>", save_button_html, 1)
+            # Reemplazar el </body> final para inyectar el botón antes de cerrar
+            html_content = html_content.replace("</body>", save_button_html, 1)
 
-        with open(file_path, "w", encoding="utf-8") as f:
-            f.write(html_content)
+            with open(file_path, "w", encoding="utf-8") as f:
+                f.write(html_content)
+
+        except OSError as err:
+            logger.error(
+                "No se pudo escribir o modificar el archivo HTML del grafo: %s", err
+            )
+            raise
 
         return file_path
 
     @staticmethod
-    def open_in_browser(file_path: str):
-        """
-<<<<<<< HEAD
-        Abre un archivo HTML local de forma multiplataforma (Linux, Windows, macOS)
+    def open_in_browser(file_path: str) -> None:
+        """Abre un archivo HTML local de forma multiplataforma (Linux, Windows, macOS)
         respetando el navegador predeterminado del usuario.
         """
-        # 1. Definimos la URL fuera del bloque de control de errores
-        url = f"file://{os.path.abspath(file_path)}"
+        url: str = f"file://{os.path.abspath(file_path)}"
+        opened: bool = False
 
         try:
-            # 2. Intentamos abrirlo de forma nativa
-            webbrowser.open(url)
-        except Exception:
-            # Fallback en caso de que webbrowser falle en algún entorno restrictivo
-            import subprocess
+            # Intentamos abrirlo a través del módulo estándar nativo
+            opened = webbrowser.open(url)
+        except OSError as err:
+            logger.warning(
+                "Fallo controlado al usar webbrowser.open: %s. Recurriendo a fallback.",
+                err,
+            )
 
-            if os.name == "posix":  # Linux / macOS
-                subprocess.Popen(
-                    ["xdg-open", url],
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
+        if not opened:
+            try:
+                if os.name == "posix":  # Linux / macOS
+                    # Bastionado estricto: shell=True totalmente ausente para prevenir inyecciones
+                    subprocess.Popen(
+                        ["xdg-open", url],
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL,
+                    )
+                else:
+                    logger.error(
+                        "Entorno operativo no compatible para el lanzamiento forzado de xdg-open."
+                    )
+            except OSError as err:
+                logger.error(
+                    "Error crítico de Entrada/Salida al invocar el proceso xdg-open: %s",
+                    err,
                 )
-=======
-        Abre un archivo HTML local usando xdg-open para respetar
-        el navegador predeterminado del sistema (KDE/GNOME).
-        """
-        subprocess.Popen(
-            ["xdg-open", f"file://{os.path.abspath(file_path)}"],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
->>>>>>> 7724dea621a204eb8ef7157c74d8431613d61dc8

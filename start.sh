@@ -13,7 +13,9 @@ fi
 
 echo -e "${GREEN}[*] Activando entorno e instalando dependencias si faltan...${NC}"
 source venv/bin/activate
-pip install -r requirements.txt -q
+
+# REPARACIÓN: Forzamos el uso del ejecutable interno del venv para evitar usar el intérprete global
+./venv/bin/python3 -m pip install -r requirements.txt
 
 if [ ! -f "phoneinfoga" ]; then
     echo -e "${GREEN}[*] Descargando binario de PhoneInfoga para Linux...${NC}"
@@ -21,4 +23,4 @@ if [ ! -f "phoneinfoga" ]; then
 fi
 
 echo -e "${GREEN}[*] Abriendo OSINT V2...${NC}"
-venv/bin/python3 main.py
+./venv/bin/python3 main.py
