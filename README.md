@@ -1,3 +1,5 @@
+Markdown
+
 # OSINT-Utility V2 🕵️‍♂️✨
 
 A professional, fully asynchronous, and modular Open Source Intelligence (OSINT) suite built with Python 3.10+ and a modern graphical interface. This platform integrates 10 specialized collection modules under strict production-grade software engineering standards.
@@ -28,7 +30,7 @@ This version marks the evolution from a collection of scripts into a robust desk
 |                   | `Subdomains`   | Infrastructure Map        | Discovers subdomains via crt.sh/HackerTarget and renders an interactive relational chart. |
 |                   | `Port Scanner` | Passive Mapping           | Passive port scanning powered by Shodan InternetDB.                                       |
 |                   | `HTTP Headers` | Server Hardening          | Evaluates security headers (HSTS, CSP, X-Frame-Options) and flags exposures.              |
-|                   | `Wayback`      | Passive Timeline          | Crawls the internet archive database to locate the oldest indexed snapshop.               |
+|                   | `Wayback`      | Passive Timeline          | Crawls the internet archive database to locate the oldest indexed snapshot.               |
 | **Forensics**     | `Metadata`     | Local Metadata Extraction | Context-managed metadata extraction from images (EXIF/GPS) and PDF records.               |
 
 ---
@@ -52,4 +54,24 @@ cd OSINT-Utility
 # 2. Grant execution permissions and run the bootstrap script
 chmod +x start.sh
 ./start.sh
+
+    ⚙️ Behind the Scenes: start.sh provisions a virtual environment (venv), securely hooks pip within the isolated namespace, satisfies requirements (requirements.txt), verifies/fetches the PhoneInfoga Go binary, and safely launches the graphical central panel.
+
+## 🔑 Secret and API Configuration
+
+The application implements strict passive validation for development and production secrets. To make use of premium data streams, create a .env file in the root directory of the project:
+Fragmento de código
+
+# VirusTotal Configuration
+VIRUSTOTAL_API_KEY=your_virustotal_api_key_here
+
+# PhoneInfoga Scanner Enhancements
+NUMVERIFY_API_KEY=your_numverify_key_here
+APILAYER_KEY=your_apilayer_key_here
+
+    ℹ️ Note: If the secrets are missing or unmodified, the core application will warn you through its logging routines but will maintain its initialization pipeline, gracefully setting the affected modules to an idle warning state (🟠/🔴) without crashing.
+
+## ⚠️ Ethical Use Notice / Disclaimer
+
+Strictly for authorized security testing, educational purposes, and defensive research. Utilizing this tool to gather intelligence against target entities without explicit prior consent may constitute an infringement of privacy regulations or computer abuse acts depending on your jurisdiction. The author and project contributors disclaim all liabilities for misapplication, damages, or illicit overhead incurred through this software stack.
 ```
