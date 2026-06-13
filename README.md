@@ -111,5 +111,3 @@ El script creará el entorno virtual (`venv`), instalará todas las dependencias
 **Solo para uso ético.** El uso de OSINT Utility para investigar objetivos sin su previo consentimiento podría ser ilegal en tu país. El creador y responsables del repositorio no asumen ninguna responsabilidad en caso de uso indebido o daño derivado de este software.
 
 ¡Disfruta recolectando conocimiento! 🕵️‍♀️
-
-Prueba
