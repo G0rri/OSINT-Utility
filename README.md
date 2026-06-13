@@ -77,7 +77,3 @@ APILAYER_KEY=your_apilayer_key_here
 ## ⚠️ Ethical Use Notice / Disclaimer
 
 Strictly for authorized security testing, educational purposes, and defensive research. Utilizing this tool to gather intelligence against target entities without explicit prior consent may constitute an infringement of privacy regulations or computer abuse acts depending on your jurisdiction. The author and project contributors disclaim all liabilities for misapplication, damages, or illicit overhead incurred through this software stack.
-
-```
-
-```
