@@ -54,7 +54,8 @@ cd OSINT-Utility
 # 2. Grant execution permissions and run the bootstrap script
 chmod +x start.sh
 ./start.sh
-``
+```
+
     ⚙️ Behind the Scenes: start.sh provisions a virtual environment (venv), securely hooks pip within the isolated namespace, satisfies requirements (requirements.txt), verifies/fetches the PhoneInfoga Go binary, and safely launches the graphical central panel.
 
 ## 🔑 Secret and API Configuration
@@ -63,9 +64,11 @@ The application implements strict passive validation for development and product
 Fragmento de código
 
 # VirusTotal Configuration
+
 VIRUSTOTAL_API_KEY=your_virustotal_api_key_here
 
 # PhoneInfoga Scanner Enhancements
+
 NUMVERIFY_API_KEY=your_numverify_key_here
 APILAYER_KEY=your_apilayer_key_here
 
@@ -74,4 +77,7 @@ APILAYER_KEY=your_apilayer_key_here
 ## ⚠️ Ethical Use Notice / Disclaimer
 
 Strictly for authorized security testing, educational purposes, and defensive research. Utilizing this tool to gather intelligence against target entities without explicit prior consent may constitute an infringement of privacy regulations or computer abuse acts depending on your jurisdiction. The author and project contributors disclaim all liabilities for misapplication, damages, or illicit overhead incurred through this software stack.
+
+```
+
 ```
