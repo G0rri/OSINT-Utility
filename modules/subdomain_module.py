@@ -1,4 +1,5 @@
 import asyncio
+<<<<<<< HEAD
 from urllib.parse import urlparse
 
 import httpx
@@ -7,10 +8,17 @@ from core.base_module import BaseModule
 from core.visualizer import NetworkVisualizer
 
 
+=======
+import httpx
+from core.base_module import BaseModule
+from core.visualizer import NetworkVisualizer
+
+>>>>>>> 7724dea621a204eb8ef7157c74d8431613d61dc8
 class SubdomainModule(BaseModule):
     def __init__(self):
         super().__init__()
         self.name = "Subdomain Scanner"
+<<<<<<< HEAD
         self.description = (
             "Búsqueda asíncrona de subdominios usando crt.sh y HackerTarget"
         )
@@ -28,12 +36,27 @@ class SubdomainModule(BaseModule):
 
         # Eliminar el puerto si el usuario lo incluyó (ej: target.com:8080)
         target = target.split(":")[0]
+=======
+        self.description = "Búsqueda asíncrona de subdominios usando crt.sh y HackerTarget"
+        
+    async def run(self, target: str, callback) -> dict:
+        callback(f"[*] Iniciando búsqueda de subdominios para: {target}\n")
+        
+        # Limpiar target en caso de que envíen URLs completas
+        target = target.strip().lower()
+        if target.startswith("http://") or target.startswith("https://"):
+            target = target.split("//")[-1].split("/")[0]
+>>>>>>> 7724dea621a204eb8ef7157c74d8431613d61dc8
 
         subdomains = set()
 
         async with httpx.AsyncClient(timeout=25.0) as client:
             # --- Fuente 1: crt.sh ---
+<<<<<<< HEAD
             callback("[*] Consultando crt.sh...\n")
+=======
+            callback(f"[*] Consultando crt.sh...\n")
+>>>>>>> 7724dea621a204eb8ef7157c74d8431613d61dc8
             crtsh_url = f"https://crt.sh/?q=%.{target}&output=json"
             try:
                 response = await client.get(crtsh_url)
@@ -46,6 +69,7 @@ class SubdomainModule(BaseModule):
                                 if sub.startswith("*."):
                                     sub = sub[2:]
                                 # Filtrar: sin @, que termine en target y no sea idéntico
+<<<<<<< HEAD
                                 if (
                                     sub
                                     and "@" not in sub
@@ -62,10 +86,21 @@ class SubdomainModule(BaseModule):
                     callback(
                         f"[-] crt.sh: Error HTTP {response.status_code}. Continuando con siguiente fuente...\n"
                     )
+=======
+                                if sub and "@" not in sub and (sub.endswith(f".{target}") or sub == target):
+                                    if sub != target:
+                                        subdomains.add(sub)
+                        callback(f"[+] crt.sh: {len(subdomains)} subdominios encontrados.\n")
+                    else:
+                        callback("[-] crt.sh: Respuesta inesperada.\n")
+                else:
+                    callback(f"[-] crt.sh: Error HTTP {response.status_code}. Continuando con siguiente fuente...\n")
+>>>>>>> 7724dea621a204eb8ef7157c74d8431613d61dc8
             except Exception as e:
                 callback(f"[-] crt.sh: Error de conexión ({e}). Continuando...\n")
 
             # --- Fuente 2: HackerTarget ---
+<<<<<<< HEAD
             callback("[*] Consultando HackerTarget...\n")
             ht_url = f"https://api.hackertarget.com/hostsearch/?q={target}"
             try:
@@ -74,6 +109,13 @@ class SubdomainModule(BaseModule):
                     response.status_code == 200
                     and "error" not in response.text.lower()[:50]
                 ):
+=======
+            callback(f"[*] Consultando HackerTarget...\n")
+            ht_url = f"https://api.hackertarget.com/hostsearch/?q={target}"
+            try:
+                response = await client.get(ht_url, timeout=20.0)
+                if response.status_code == 200 and "error" not in response.text.lower()[:50]:
+>>>>>>> 7724dea621a204eb8ef7157c74d8431613d61dc8
                     count_before = len(subdomains)
                     for line in response.text.splitlines():
                         parts = line.split(",")
@@ -82,6 +124,7 @@ class SubdomainModule(BaseModule):
                             if sub and "@" not in sub and sub.endswith(f".{target}"):
                                 subdomains.add(sub)
                     new_found = len(subdomains) - count_before
+<<<<<<< HEAD
                     callback(
                         f"[+] HackerTarget: {new_found} subdominios adicionales encontrados.\n"
                     )
@@ -89,14 +132,23 @@ class SubdomainModule(BaseModule):
                     callback(
                         "[-] HackerTarget: Sin resultados o límite de API alcanzado.\n"
                     )
+=======
+                    callback(f"[+] HackerTarget: {new_found} subdominios adicionales encontrados.\n")
+                else:
+                    callback(f"[-] HackerTarget: Sin resultados o límite de API alcanzado.\n")
+>>>>>>> 7724dea621a204eb8ef7157c74d8431613d61dc8
             except Exception as e:
                 callback(f"[-] HackerTarget: Error de conexión ({e}).\n")
 
         if subdomains:
             sorted_subs = sorted(list(subdomains))
+<<<<<<< HEAD
             callback(
                 f"\n[+] Total: {len(sorted_subs)} subdominios únicos encontrados:\n"
             )
+=======
+            callback(f"\n[+] Total: {len(sorted_subs)} subdominios únicos encontrados:\n")
+>>>>>>> 7724dea621a204eb8ef7157c74d8431613d61dc8
             for sub in sorted_subs:
                 callback(f"    - {sub}\n")
                 await asyncio.sleep(0.005)
@@ -104,11 +156,17 @@ class SubdomainModule(BaseModule):
             # --- Generar Grafo ---
             callback("\n[*] Generando grafo interactivo de red...\n")
             try:
+<<<<<<< HEAD
                 graph_path = NetworkVisualizer.generate_subdomain_graph(
                     target, sorted_subs
                 )
                 NetworkVisualizer.open_in_browser(graph_path)
                 callback("[+] Grafo abierto en el navegador predeterminado.\n")
+=======
+                graph_path = NetworkVisualizer.generate_subdomain_graph(target, sorted_subs)
+                NetworkVisualizer.open_in_browser(graph_path)
+                callback(f"[+] Grafo abierto en el navegador predeterminado.\n")
+>>>>>>> 7724dea621a204eb8ef7157c74d8431613d61dc8
                 callback(f"    (Archivo temporal: {graph_path})\n")
             except Exception as e:
                 callback(f"[-] Error al generar/abrir el grafo: {e}\n")

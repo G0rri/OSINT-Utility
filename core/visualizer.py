@@ -1,7 +1,12 @@
 import os
+<<<<<<< HEAD
 import tempfile
 import webbrowser
 
+=======
+import subprocess
+import tempfile
+>>>>>>> 7724dea621a204eb8ef7157c74d8431613d61dc8
 from pyvis.network import Network
 
 
@@ -23,7 +28,11 @@ class NetworkVisualizer:
             height="100vh",
             width="100%",
             bgcolor="#1a1a2e",
+<<<<<<< HEAD
             font_color="#e0e0e0",  # type: ignore
+=======
+            font_color="#e0e0e0",
+>>>>>>> 7724dea621a204eb8ef7157c74d8431613d61dc8
             cdn_resources="in_line",
         )
 
@@ -32,7 +41,11 @@ class NetworkVisualizer:
             root_domain,
             label=root_domain,
             title="<b>🎯 Dominio Raíz</b>",
+<<<<<<< HEAD
             color={"background": "#E50914", "border": "#FF4444"},  # type: ignore
+=======
+            color={"background": "#E50914", "border": "#FF4444"},
+>>>>>>> 7724dea621a204eb8ef7157c74d8431613d61dc8
             size=40,
             shape="diamond",
         )
@@ -44,7 +57,11 @@ class NetworkVisualizer:
                     sub,
                     label=sub,
                     title=f"<b>Subdominio:</b> {sub}",
+<<<<<<< HEAD
                     color={"background": "#1a6db5", "border": "#569CD6"},  # type: ignore
+=======
+                    color={"background": "#1a6db5", "border": "#569CD6"},
+>>>>>>> 7724dea621a204eb8ef7157c74d8431613d61dc8
                     size=18,
                 )
                 net.add_edge(root_domain, sub, color="#444466", width=1)
@@ -154,6 +171,7 @@ function saveGraph() {{
     @staticmethod
     def open_in_browser(file_path: str):
         """
+<<<<<<< HEAD
         Abre un archivo HTML local de forma multiplataforma (Linux, Windows, macOS)
         respetando el navegador predeterminado del usuario.
         """
@@ -173,3 +191,13 @@ function saveGraph() {{
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
                 )
+=======
+        Abre un archivo HTML local usando xdg-open para respetar
+        el navegador predeterminado del sistema (KDE/GNOME).
+        """
+        subprocess.Popen(
+            ["xdg-open", f"file://{os.path.abspath(file_path)}"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+>>>>>>> 7724dea621a204eb8ef7157c74d8431613d61dc8

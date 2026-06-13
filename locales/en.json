@@ -15,7 +15,12 @@
     "search_btn": "Search",
     "stop_btn": "Stop",
     "clear_btn": "Clear Console",
+<<<<<<< HEAD
     "save_btn": "Save Report",
+=======
+    "save_btn": "Save .txt",
+    "export_btn": "Export JSON / HTML",
+>>>>>>> 7724dea621a204eb8ef7157c74d8431613d61dc8
     "placeholder_holehe": "Enter email (for Holehe)",
     "placeholder_sherlock": "Enter username (for Sherlock)",
     "placeholder_phoneinfoga": "Enter phone number (e.g. +34600123456)",
@@ -38,5 +43,26 @@
     "holehe_missing": "Missing python package holehe.",
     "metadata_ok": "Pillow and PyPDF2 installed correctly.",
     "metadata_deps_missing": "Pillow and PyPDF2 missing. Run pip install pillow pypdf2.",
+<<<<<<< HEAD
     "metadata_partial": "Partial dependencies. Some file types won't be analysable."
+=======
+    "metadata_partial": "Partial dependencies. Some file types won't be analysable.",
+    "history_tooltip": "View recent search history (↑↓ to navigate)",
+    "history_empty": "Search history is empty.",
+    "history_cleared": "Search history cleared.",
+    "history_clear": "Clear history",
+    "save_empty": "The console is empty, nothing to save.",
+    "save_dialog_title": "Save OSINT Report",
+    "save_ok": "REPORT SAVED SUCCESSFULLY AT:",
+    "save_error": "Error saving report:",
+    "export_json_title": "Export as JSON",
+    "export_html_title": "Export as HTML",
+    "export_ok": "EXPORTED SUCCESSFULLY AT:",
+    "export_error": "Export error:",
+    "error_empty_target": "Please enter a valid target.",
+    "error_file_not_found": "Error: file does NOT EXIST or is a directory:",
+    "task_start": "Starting for:",
+    "task_cancelled": "Task cancelled by user.",
+    "task_error": "Critical error running"
+>>>>>>> 7724dea621a204eb8ef7157c74d8431613d61dc8
 }
