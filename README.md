@@ -54,7 +54,7 @@ cd OSINT-Utility
 # 2. Grant execution permissions and run the bootstrap script
 chmod +x start.sh
 ./start.sh
-
+``
     ⚙️ Behind the Scenes: start.sh provisions a virtual environment (venv), securely hooks pip within the isolated namespace, satisfies requirements (requirements.txt), verifies/fetches the PhoneInfoga Go binary, and safely launches the graphical central panel.
 
 ## 🔑 Secret and API Configuration
