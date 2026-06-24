@@ -1,8 +1,10 @@
 import asyncio
 import logging
 import os
+import re
 import sys
 import tkinter as tk
+import webbrowser
 from typing import Any
 
 import customtkinter as ctk
@@ -11,8 +13,6 @@ from customtkinter import filedialog
 from dotenv import load_dotenv
 
 # ---- INTERCEPTOR MULTIPROCESO (SELF-EXECUTION) ----
-# Si la app se llama a sí misma con esta bandera, ejecuta Holehe en modo consola
-# en su propio proceso aislado y se cierra inmediatamente.
 if len(sys.argv) > 1 and sys.argv[1] == "--run-holehe":
     from holehe import core
 
@@ -30,7 +30,6 @@ def validar_entorno() -> None:
     """Verifica el estado de las variables críticas sin llegar a romper el arranque de la app."""
     vt_key: str | None = os.getenv("VIRUSTOTAL_API_KEY")
     if not vt_key or len(vt_key.strip()) == 0 or vt_key.lower() == "tu_api_key_aqui":
-        # Bajamos la severidad a WARNING y eliminamos el sys.exit
         logging.warning(
             "Aviso: VIRUSTOTAL_API_KEY no configurada en el .env. "
             "La aplicación iniciará, pero el módulo de VirusTotal mostrará un estado de alerta."
@@ -136,6 +135,9 @@ class OSINTApp(ctk.CTk):
         self.metadata_module: MetadataModule = MetadataModule()
         self.security_headers_module: SecurityHeadersModule = SecurityHeadersModule()
         self.phoneinfoga_module: PhoneInfogaModule = PhoneInfogaModule()
+
+        # Variable para controlar dinámicamente las búsquedas de PhoneInfoga
+        self.google_search_var: ctk.BooleanVar = ctk.BooleanVar(value=False)
 
         self.current_task: asyncio.Task[Any] | None = None
         self.is_running: bool = True
@@ -257,6 +259,15 @@ class OSINTApp(ctk.CTk):
             padx=20,
         )
 
+        # Checkbox flotante para PhoneInfoga (Mapeado de forma segura en la misma pestaña)
+        self.chk_google_search: ctk.CTkCheckBox = ctk.CTkCheckBox(
+            master=self.tabview.tab(self.translator.get("tab_identities")),
+            text="Habilitar Google Search (Dorks)",
+            variable=self.google_search_var,
+            font=("Helvetica", 12),
+            text_color="#FFA500",
+        )
+
         # Pestaña Red
         self.red_var: ctk.StringVar = ctk.StringVar(value="VirusTotal")
         _add_tool_radio(
@@ -369,6 +380,20 @@ class OSINTApp(ctk.CTk):
         self.console_textbox.tag_config("error", foreground="#F44336")
         self.console_textbox.tag_config("header", foreground="#C586C0")
 
+        # Configuración profesional de eventos y estilo para hipervínculos detectados
+        self.console_textbox.tag_config(
+            "hyperlink", foreground="#4A90E2", underline=True
+        )
+        self.console_textbox.tag_bind(
+            "hyperlink",
+            "<Enter>",
+            lambda e: self.console_textbox.configure(cursor="hand2"),
+        )
+        self.console_textbox.tag_bind(
+            "hyperlink", "<Leave>", lambda e: self.console_textbox.configure(cursor="")
+        )
+        self.console_textbox.tag_bind("hyperlink", "<Button-1>", self._on_link_click)
+
         # --- FOOTER ---
         self.footer_frame: ctk.CTkFrame = ctk.CTkFrame(self, fg_color="transparent")
         self.footer_frame.grid(row=2, column=0, padx=20, pady=(0, 20), sticky="ew")
@@ -474,12 +499,41 @@ class OSINTApp(ctk.CTk):
         else:
             self.btn_file.configure(state="disabled")
 
+        # Conmutación inteligente del checkbox para no emborronar la GUI
+        if choice == "PhoneInfoga":
+            self.chk_google_search.pack(side="left", padx=20)
+        else:
+            self.chk_google_search.pack_forget()
+
         key: str | None = _placeholder_keys.get(choice)
         if key:
             set_placeholder(self.translator.get(key))
 
+    def _on_link_click(self, event: tk.Event) -> None:
+        """Detecta el rango del enlace pulsado bajo el cursor y lo lanza al navegador."""
+        index: str = self.console_textbox.index(f"@{event.x},{event.y}")
+        ranges = self.console_textbox.tag_ranges("hyperlink")
+
+        for i in range(0, len(ranges), 2):
+            start = ranges[i]
+            end = ranges[i + 1]
+
+            if self.console_textbox.compare(
+                start, "<=", index
+            ) and self.console_textbox.compare(index, "<=", end):
+                url: str = self.console_textbox.get(start, end).strip()
+                try:
+                    webbrowser.open_new_tab(url)
+                except webbrowser.Error as err:
+                    logging.error(
+                        f"Error al intentar interactuar con el navegador web del sistema: {err}"
+                    )
+                break
+
     def log_to_console(self, text: str) -> None:
+        """Inyecta texto segmentando mediante expresiones regulares las URLs con tags de interactividad."""
         self.console_textbox.configure(state="normal")
+
         tag: str | None = None
         if "[*]" in text:
             tag = "info"
@@ -490,10 +544,29 @@ class OSINTApp(ctk.CTk):
         elif "--- [" in text:
             tag = "header"
 
-        if tag:
-            self.console_textbox.insert("end", text, tag)
-        else:
-            self.console_textbox.insert("end", text)
+        last_idx: int = 0
+        # Parseo quirúrgico por expresión regular para separar URLs del texto plano
+        for match in re.finditer(r"(https?://[^\s\)]+)", text):
+            start, end = match.span()
+
+            if start > last_idx:
+                prev_text: str = text[last_idx:start]
+                if tag:
+                    self.console_textbox.insert("end", prev_text, tag)
+                else:
+                    self.console_textbox.insert("end", prev_text)
+
+            url_text: str = text[start:end]
+            self.console_textbox.insert("end", url_text, "hyperlink")
+            last_idx = end
+
+        if last_idx < len(text):
+            remaining_text: str = text[last_idx:]
+            if tag:
+                self.console_textbox.insert("end", remaining_text, tag)
+            else:
+                self.console_textbox.insert("end", remaining_text)
+
         self.console_textbox.see("end")
         self.console_textbox.configure(state="disabled")
 
@@ -559,6 +632,10 @@ class OSINTApp(ctk.CTk):
             self.log_to_console("[-] Módulo no detectado.\n")
             self._restore_ui_controls()
             return
+
+        # Sincronización del checkbox con el estado interno de PhoneInfoga
+        if selected_tool == "PhoneInfoga":
+            active_module.toggle_google_search(self.google_search_var.get())
 
         self.log_to_console(
             f"\n--- [ {active_module.name} TASK ] Iniciando para: {target} ---\n"
