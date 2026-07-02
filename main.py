@@ -259,7 +259,7 @@ class OSINTApp(ctk.CTk):
             padx=20,
         )
 
-        # Checkbox flotante para PhoneInfoga (Mapeado de forma segura en la misma pestaña)
+        # Checkbox flotante para PhoneInfoga
         self.chk_google_search: ctk.CTkCheckBox = ctk.CTkCheckBox(
             master=self.tabview.tab(self.translator.get("tab_identities")),
             text="Habilitar Google Search (Dorks)",
@@ -380,7 +380,6 @@ class OSINTApp(ctk.CTk):
         self.console_textbox.tag_config("error", foreground="#F44336")
         self.console_textbox.tag_config("header", foreground="#C586C0")
 
-        # Configuración profesional de eventos y estilo para hipervínculos detectados
         self.console_textbox.tag_config(
             "hyperlink", foreground="#4A90E2", underline=True
         )
@@ -425,8 +424,9 @@ class OSINTApp(ctk.CTk):
         log_handler: CustomTkinterLogHandler = CustomTkinterLogHandler(
             self.console_textbox
         )
+
         log_formatter: logging.Formatter = logging.Formatter(
-            "%(asctime)s - [%(levelname)s] - %(message)s", "%H:%M:%S"
+            "%(asctime)s - %(message)s", "%H:%M:%S"
         )
         log_handler.setFormatter(log_formatter)
         root_logger.addHandler(log_handler)
@@ -499,7 +499,6 @@ class OSINTApp(ctk.CTk):
         else:
             self.btn_file.configure(state="disabled")
 
-        # Conmutación inteligente del checkbox para no emborronar la GUI
         if choice == "PhoneInfoga":
             self.chk_google_search.pack(side="left", padx=20)
         else:
@@ -510,7 +509,6 @@ class OSINTApp(ctk.CTk):
             set_placeholder(self.translator.get(key))
 
     def _on_link_click(self, event: tk.Event) -> None:
-        """Detecta el rango del enlace pulsado bajo el cursor y lo lanza al navegador."""
         index: str = self.console_textbox.index(f"@{event.x},{event.y}")
         ranges = self.console_textbox.tag_ranges("hyperlink")
 
@@ -531,7 +529,6 @@ class OSINTApp(ctk.CTk):
                 break
 
     def log_to_console(self, text: str) -> None:
-        """Inyecta texto segmentando mediante expresiones regulares las URLs con tags de interactividad."""
         self.console_textbox.configure(state="normal")
 
         tag: str | None = None
@@ -545,7 +542,6 @@ class OSINTApp(ctk.CTk):
             tag = "header"
 
         last_idx: int = 0
-        # Parseo quirúrgico por expresión regular para separar URLs del texto plano
         for match in re.finditer(r"(https?://[^\s\)]+)", text):
             start, end = match.span()
 
@@ -633,13 +629,11 @@ class OSINTApp(ctk.CTk):
             self._restore_ui_controls()
             return
 
-        # Sincronización del checkbox con el estado interno de PhoneInfoga
         if selected_tool == "PhoneInfoga":
             active_module.toggle_google_search(self.google_search_var.get())
 
-        self.log_to_console(
-            f"\n--- [ {active_module.name} TASK ] Iniciando para: {target} ---\n"
-        )
+        # CORREGIDO: Eliminamos la inyección redundante del encabezado técnico f"\n--- [ {active_module.name} TASK ] ..."
+        # para que la salida gráfica comience directamente con la maquetación estilizada propia del módulo.
         self.current_task = self.loop.create_task(
             self._async_module_execution(active_module, target)
         )
