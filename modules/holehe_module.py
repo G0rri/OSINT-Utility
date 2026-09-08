@@ -1,48 +1,90 @@
+"""Rastreo de correos mediante la API Python de Holehe.
+
+Hasta ahora este módulo lanzaba `holehe` como subproceso y reconstruía los
+resultados filtrando su salida de consola con una lista de cadenas mágicas
+("For BTC Donations", "websites checked in"…). Ese acoplamiento al formato de
+impresión de una herramienta de terceros se rompía en silencio con cada cambio
+de versión y descartaba información que Holehe sí produce.
+
+Ahora se invocan directamente las corrutinas de `holehe.modules`, que devuelven
+un diccionario estructurado por sitio. Además de ser estable frente a cambios de
+formato, esto expone el correo y el teléfono de recuperación que el parseo de
+texto perdía.
+"""
+
 import asyncio
 import logging
-import os
-import re
-import sys
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from typing import Any
 
 import httpx
 
 from core.base_module import BaseModule
 
-# Configuración del logger nativo del módulo para entornos de producción
 logger: logging.Logger = logging.getLogger("OSINTApp.HoleheModule")
 
-# Silenciamos los loggers internos de las librerías de red para mantener la consola limpia
+# Silenciamos los loggers internos de las librerías de terceros para no inundar
+# la consola de la GUI. BeautifulSoup avisa por logging (no por print) cada vez
+# que un sitio devuelve HTML mal codificado, algo habitual al consultar ~120
+# servicios: sin esto, la consola se llena de avisos ajenos al análisis.
 logging.getLogger("httpx").setLevel(logging.WARNING)
 logging.getLogger("httpcore").setLevel(logging.WARNING)
+logging.getLogger("bs4").setLevel(logging.ERROR)
+logging.getLogger("bs4.dammit").setLevel(logging.ERROR)
+
+# Holehe lanza sus ~120 comprobaciones de golpe. Limitamos la concurrencia para
+# no disparar los límites de tasa de los sitios ni saturar la red del usuario.
+_MAX_CONCURRENCY: int = 30
+_REQUEST_TIMEOUT: float = 10.0
+_PROGRESS_EVERY: int = 25
+
+# Caché de las corrutinas descubiertas: el escaneo de paquetes solo se hace una vez.
+_WEBSITE_FUNCTIONS: list[Callable[..., Any]] | None = None
+
+
+def _discover_websites() -> list[Callable[..., Any]]:
+    """Descubre las corrutinas de comprobación que expone Holehe.
+
+    `import_submodules` recorre `holehe.modules` e importa cada submódulo, por lo
+    que solo se ejecuta la primera vez y se cachea.
+    """
+    global _WEBSITE_FUNCTIONS
+    if _WEBSITE_FUNCTIONS is None:
+        from holehe.core import get_functions, import_submodules
+
+        _WEBSITE_FUNCTIONS = list(get_functions(import_submodules("holehe.modules")))
+        logger.info("Holehe: %d comprobaciones disponibles.", len(_WEBSITE_FUNCTIONS))
+    return _WEBSITE_FUNCTIONS
 
 
 class HoleheModule(BaseModule):
-    """Módulo profesional optimizado para el rastreo, limpieza y enriquecimiento libre de emails."""
+    """Rastrea en qué servicios está registrado un correo electrónico."""
 
     def __init__(self, name: str = "Holehe") -> None:
         super().__init__(name)
 
     def check_health(self) -> tuple[str, str]:
-        """Comprueba de forma síncrona si el entorno de Holehe está operativo."""
+        """Comprueba que la librería Holehe esté instalada y exponga su API."""
         try:
-            import holehe  # noqa: F401
-
-            return "ok", "holehe_ok"
-        except ImportError:
-            logger.error(
-                "La librería 'holehe' no está instalada en el entorno virtual actual."
-            )
+            from holehe.core import get_functions, import_submodules  # noqa: F401
+        except ImportError as err:
+            logger.error("La librería 'holehe' no está disponible: %s", err)
             return "error", "holehe_missing"
+        return "ok", "holehe_ok"
+
+    # ------------------------------------------------------------------
+    # Ejecución
+    # ------------------------------------------------------------------
 
     async def run(self, target: str, callback: Callable[[str], None]) -> dict[str, Any]:
-        """Ejecuta el rastreo de email eliminando el ruido visual de banners de forma multiplataforma."""
-        logger.info(f"Iniciando ciclo de inteligencia OSINT autónomo para: {target}")
+        """Consulta todos los sitios soportados y enriquece con fuentes externas."""
+        logger.info("Iniciando rastreo de Holehe para: %s", target)
 
-        resultados_finales: dict[str, Any] = {
+        resultados: dict[str, Any] = {
             "email": target,
             "sitios_detectados": [],
+            "detalles": [],
+            "limitados": [],
             "brechas_seguridad": {},
             "identidad_google": {},
         }
@@ -50,131 +92,148 @@ class HoleheModule(BaseModule):
         callback(f"[★] Análisis avanzado para: {target}\n")
         callback("-" * 60 + "\n")
 
-        ansi_regex: re.Pattern[str] = re.compile(r"\x1b\[[0-9;]*m")
+        if not self._is_email(target):
+            callback(f"[-] '{target}' no tiene forma de dirección de correo.\n")
+            resultados["status"] = "error"
+            resultados["error"] = "invalid_email"
+            return resultados
 
-        inline_script: str = (
-            "import sys; "
-            "from holehe.core import main; "
-            "sys.argv = ['holehe', sys.argv[1], '--only-used']; "
-            "main()"
+        await self._rastrear_sitios(target, callback, resultados)
+
+        # Enriquecimiento con fuentes que Holehe no cubre.
+        await self._analizar_brechas_libre(target, callback, resultados)
+        if target.lower().endswith("@gmail.com"):
+            await self._analizar_perfil_google(target, callback, resultados)
+
+        resultados["status"] = "success"
+        return resultados
+
+    @staticmethod
+    def _is_email(value: str) -> bool:
+        """Valida la dirección con la misma comprobación que usa Holehe."""
+        try:
+            from holehe.core import is_email
+
+            return bool(is_email(value))
+        except ImportError:
+            return "@" in value and "." in value.split("@")[-1]
+
+    async def _rastrear_sitios(
+        self,
+        email: str,
+        callback: Callable[[str], None],
+        resultados: dict[str, Any],
+    ) -> None:
+        """Ejecuta las comprobaciones de Holehe y reporta los aciertos al vuelo."""
+        try:
+            websites: Sequence[Callable[..., Any]] = await asyncio.to_thread(
+                _discover_websites
+            )
+        except ImportError as err:
+            logger.error("No se pudo cargar el catálogo de Holehe: %s", err)
+            callback("[-] La librería Holehe no está disponible en este entorno.\n")
+            return
+
+        total: int = len(websites)
+        callback(f"[*] Consultando {total} servicios...\n")
+
+        salida: list[dict[str, Any]] = []
+        completadas: int = 0
+        semaforo: asyncio.Semaphore = asyncio.Semaphore(_MAX_CONCURRENCY)
+
+        async with httpx.AsyncClient(timeout=_REQUEST_TIMEOUT) as client:
+
+            async def _ejecutar(funcion: Callable[..., Any]) -> None:
+                nonlocal completadas
+                async with semaforo:
+                    await self._invocar_comprobacion(funcion, email, client, salida)
+                completadas += 1
+                if completadas % _PROGRESS_EVERY == 0:
+                    callback(f"    ... {completadas}/{total} comprobados\n")
+
+            await asyncio.gather(*(_ejecutar(f) for f in websites))
+
+        self._volcar_resultados(salida, callback, resultados)
+
+    @staticmethod
+    async def _invocar_comprobacion(
+        funcion: Callable[..., Any],
+        email: str,
+        client: httpx.AsyncClient,
+        salida: list[dict[str, Any]],
+    ) -> None:
+        """Ejecuta una comprobación aislando sus fallos del resto del escaneo.
+
+        Este es el único punto del proyecto donde se captura `Exception` de forma
+        genérica, y es deliberado: son ~120 módulos de terceros que parsean HTML
+        ajeno y pueden lanzar prácticamente cualquier cosa (IndexError al trocear
+        una respuesta inesperada, KeyError, errores de codificación…). Dejar
+        escapar una de ellas abortaría las 119 restantes. `asyncio.CancelledError`
+        hereda de `BaseException`, así que la cancelación del usuario sigue
+        propagándose sin quedar atrapada aquí.
+        """
+        nombre: str = getattr(funcion, "__name__", "desconocido")
+        try:
+            await funcion(email, client, salida)
+        except Exception as err:  # noqa: BLE001
+            logger.debug("La comprobación '%s' falló y se omite: %s", nombre, err)
+
+    @staticmethod
+    def _volcar_resultados(
+        salida: list[dict[str, Any]],
+        callback: Callable[[str], None],
+        resultados: dict[str, Any],
+    ) -> None:
+        """Ordena, reporta y acumula los hallazgos del escaneo."""
+        encontrados: list[dict[str, Any]] = sorted(
+            (r for r in salida if r.get("exists")),
+            key=lambda r: str(r.get("name", "")),
+        )
+        limitados: list[str] = sorted(
+            str(r.get("name", "")) for r in salida if r.get("rateLimit")
         )
 
-        comando: list[str] = [sys.executable, "-c", inline_script, target]
-        logger.debug(f"Lanzando comando de subproceso unificado: {' '.join(comando)}")
+        resultados["limitados"] = limitados
 
-        try:
-            env_limpio = os.environ.copy()
-            env_limpio["PYTHONUNBUFFERED"] = "1"
-
-            procesos_async = await asyncio.create_subprocess_exec(
-                *comando,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-                env=env_limpio,
-                shell=False,
-            )
-
-            # Lector de salida estándar (Captura de aciertos positivos limpios)
-            async def leer_stdout() -> None:
-                if procesos_async.stdout:
-                    while True:
-                        linea_bytes = await procesos_async.stdout.readline()
-                        if not linea_bytes:
-                            break
-                        linea_texto = ansi_regex.sub(
-                            "", linea_bytes.decode("utf-8", errors="ignore")
-                        ).strip()
-
-                        # Filtros quirúrgicos anti-spam institucionales
-                        if any(
-                            ruido in linea_texto
-                            for ruido in [
-                                "Twitter :",
-                                "Github :",
-                                "For BTC Donations",
-                                "websites checked in",
-                                "Búsqueda en Holehe",
-                                "TASK",
-                            ]
-                        ):
-                            continue
-                        if (
-                            "%|" in linea_texto
-                            or "[!]" in linea_texto
-                            or "REPLACEMENT CHARACTER" in linea_texto
-                        ):
-                            continue
-                        if not linea_texto or linea_texto.startswith("****"):
-                            continue
-
-                        if "[+]" in linea_texto:
-                            # Exclusión de la leyenda de Holehe que se colaba al final
-                            if any(
-                                w in linea_texto.lower()
-                                for w in [
-                                    "email used",
-                                    "rate limit",
-                                    "not used",
-                                    "legend",
-                                ]
-                            ):
-                                continue
-
-                            sitio = linea_texto.replace("[+]", "").strip()
-                            if sitio and not sitio.startswith(":") and len(sitio) > 1:
-                                resultados_finales["sitios_detectados"].append(sitio)
-                                callback(f"  [+] Registrado en: {sitio}\n")
-
-            # Lector de errores silenciado (Evita las alertas rojas en la UI)
-            async def leer_stderr() -> None:
-                if procesos_async.stderr:
-                    while True:
-                        linea_bytes = await procesos_async.stderr.readline()
-                        if not linea_bytes:
-                            break
-                        linea_texto = linea_bytes.decode(
-                            "utf-8", errors="ignore"
-                        ).strip()
-                        if linea_texto:
-                            logger.debug(f"Traza secundaria de Holehe: {linea_texto}")
-
-            await asyncio.gather(leer_stdout(), leer_stderr())
-            await procesos_async.wait()
-
-        except OSError as exc:
-            logger.error(
-                f"Fallo crítico de llamada del sistema al invocar subproceso: {exc}"
-            )
-            callback("[⚠️] Error interno al procesar el motor de firmas local.\n")
-        except asyncio.CancelledError:
-            logger.warning(
-                "La tarea asíncrona de Holehe fue abortada de forma externa."
-            )
-            raise
-
-        if not resultados_finales["sitios_detectados"]:
+        if not encontrados:
             callback(
-                "  ℹ️ No se detectaron registros activos en los módulos estándar.\n"
+                "\n  ℹ️ No se detectaron registros activos en los servicios consultados.\n"
+            )
+        else:
+            callback(f"\n[+] Registrado en {len(encontrados)} servicios:\n")
+
+        for registro in encontrados:
+            dominio: str = str(registro.get("domain") or registro.get("name", ""))
+            resultados["sitios_detectados"].append(dominio)
+            resultados["detalles"].append(registro)
+            callback(f"  [+] Registrado en: {dominio}\n")
+
+            # Información que el parseo de la salida de consola descartaba.
+            recuperacion: Any = registro.get("emailrecovery")
+            telefono: Any = registro.get("phoneNumber")
+            if recuperacion:
+                callback(f"        ↳ Correo de recuperación: {recuperacion}\n")
+            if telefono:
+                callback(f"        ↳ Teléfono de recuperación: {telefono}\n")
+
+        if limitados:
+            callback(
+                f"\n  [×] {len(limitados)} servicios no respondieron por límite "
+                "de tasa; sus resultados son indeterminados.\n"
             )
 
-        # 2. ENRIQUECIMIENTO MEDIANTE FUGAS DE DATOS (XposedOrNot)
-        await self._analizar_brechas_libre(target, callback, resultados_finales)
-
-        # 3. EXTRACCIÓN PASIVA DE INTELIGENCIA DE GOOGLE SUITE
-        if target.lower().endswith("@gmail.com"):
-            await self._analizar_perfil_google(target, callback, resultados_finales)
-
-        return resultados_finales
+    # ------------------------------------------------------------------
+    # Enriquecimiento externo
+    # ------------------------------------------------------------------
 
     async def _analizar_brechas_libre(
         self, email: str, callback: Callable[[str], None], resultados: dict[str, Any]
     ) -> None:
-        """Consulta asíncronamente el endpoint público y libre de XposedOrNot."""
+        """Consulta el endpoint público y libre de XposedOrNot."""
         callback(
             "\n[🔍] Consultando inteligencia de brechas de datos (XposedOrNot)...\n"
         )
 
-        # CORRECCIÓN VITAL: Endpoint oficial que no requiere API Keys ni sufre bloqueos
         url_xposed: str = f"https://api.xposedornot.com/v1/check-email/{email}"
         headers: dict[str, str] = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
@@ -189,7 +248,7 @@ class HoleheModule(BaseModule):
                     payload = response.json()
                     breaches_array = payload.get("breaches", [])
 
-                    # Desempaquetamos la lista doble que devuelve XposedOrNot [["brecha1", "brecha2"]]
+                    # XposedOrNot anida el listado: [["brecha1", "brecha2"]]
                     brechas = (
                         breaches_array[0]
                         if breaches_array and isinstance(breaches_array[0], list)
@@ -199,7 +258,8 @@ class HoleheModule(BaseModule):
                     if brechas:
                         resultados["brechas_seguridad"] = brechas
                         callback(
-                            f"  ⚠️ ¡Alerta! El correo se localizó en {len(brechas)} filtraciones de datos públicas.\n"
+                            f"  ⚠️ ¡Alerta! El correo se localizó en {len(brechas)} "
+                            "filtraciones de datos públicas.\n"
                         )
                         for breach in brechas[:3]:
                             callback(f"    - Exposición confirmada en: {breach}\n")
@@ -218,15 +278,13 @@ class HoleheModule(BaseModule):
                     )
                 else:
                     logger.warning(
-                        f"El servidor de XposedOrNot respondió con código: {response.status_code}"
+                        "XposedOrNot respondió con código: %s", response.status_code
                     )
                     callback(
                         "  [×] Repositorio de consultas temporalmente fuera de línea.\n"
                     )
             except (httpx.RequestError, ValueError) as exc:
-                logger.error(
-                    f"Fallo de conectividad o parseo con servidor OSINT: {exc}"
-                )
+                logger.error("Fallo de conectividad o parseo con XposedOrNot: %s", exc)
                 callback(
                     "  [×] Error de red al conectar con el servidor libre de credenciales.\n"
                 )
@@ -234,7 +292,7 @@ class HoleheModule(BaseModule):
     async def _analizar_perfil_google(
         self, email: str, callback: Callable[[str], None], resultados: dict[str, Any]
     ) -> None:
-        """Valida pasivamente la existencia de la cuenta interrogando el servidor de avatares de Google."""
+        """Valida pasivamente la cuenta interrogando el servidor de avatares de Google."""
         callback("\n[👤] Analizando vectores de identidad activa en Google Suite...\n")
         url_google: str = f"https://profiles.google.com/s/v/p/il/{email}/profile.jpg"
 
@@ -262,9 +320,7 @@ class HoleheModule(BaseModule):
                         "  ℹ️ No se pudo comprobar el estado de privacidad en los servidores de Google.\n"
                     )
             except httpx.RequestError as exc:
-                logger.error(
-                    f"Error de transporte HTTP al consultar endpoints de Google: {exc}"
-                )
+                logger.error("Error HTTP al consultar endpoints de Google: %s", exc)
                 callback(
                     "  [×] Imposible conectar con los servidores de validación de Google.\n"
                 )

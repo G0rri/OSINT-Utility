@@ -21,6 +21,7 @@ select = [
     "B",      # bugbear
     "SIM",    # simplify
     "ASYNC",  # errores propios de asyncio
+    "BLE",    # prohíbe `except Exception` genérico (regla del proyecto)
     "RUF",
 ]
 ignore = [

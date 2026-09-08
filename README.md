@@ -22,10 +22,13 @@ arquitectura de plugins común.
 - **Subprocesos sin `shell=True`.** Los binarios externos (Sherlock,
   PhoneInfoga) se invocan mediante `asyncio.create_subprocess_exec` pasando los
   argumentos como lista. No hay superficie de inyección de comandos.
-- **Manejo de errores específico.** No se usa `except Exception` en ninguna
-  parte del código: cada módulo captura las excepciones concretas que puede
-  producir (`httpx.HTTPStatusError`, `httpx.TimeoutException`, `socket.gaierror`,
-  `dns.resolver.NXDOMAIN`…), de forma que un endpoint caído no tumba la sesión.
+- **Manejo de errores específico.** Cada módulo captura las excepciones concretas
+  que puede producir (`httpx.HTTPStatusError`, `httpx.TimeoutException`,
+  `socket.gaierror`, `dns.resolver.NXDOMAIN`…), de forma que un endpoint caído no
+  tumba la sesión. La prohibición de `except Exception` genérico la impone `ruff`
+  mediante la regla `BLE`, no la buena voluntad: hay una única excepción en todo
+  el proyecto, marcada y justificada en el punto donde se invocan los ~120
+  módulos de terceros de Holehe.
 - **Logging nativo.** Sin `print()`. Un handler propio (`CustomTkinterLogHandler`)
   redirige los registros a la consola de la GUI; es tolerante a la destrucción
   del widget y reencola en el hilo de la interfaz los registros que llegan desde
@@ -37,7 +40,7 @@ arquitectura de plugins común.
 
 | Categoría        | Módulo         | Objetivo             | Descripción                                                            |
 | :--------------- | :------------- | :------------------- | :--------------------------------------------------------------------- |
-| **Identidades**  | `Holehe`       | Email                | Rastrea el registro de un correo en cientos de sitios.                 |
+| **Identidades**  | `Holehe`       | Email                | Consulta ~120 servicios vía la API de Holehe; expone datos de recuperación. |
 |                  | `Sherlock`     | Username             | Correlaciona cuentas de redes sociales y foros por handle.             |
 |                  | `PhoneInfoga`  | Teléfono             | Escáner de números apoyado en APIs externas.                           |
 | **Red y Web**    | `VirusTotal`   | Reputación           | Consulta pasiva a la API v3 de VirusTotal para IPs y dominios.         |
@@ -158,9 +161,11 @@ Las pruebas de red usan `httpx.MockTransport`: no se realiza ninguna petición
 real. `tests/test_registry.py` valida que cada entrada del catálogo apunte a
 claves de traducción existentes y a métodos que el módulo implementa. La configuración de `ruff` y `pytest` vive en `pyproject.toml`.
 
-Las versiones de `holehe` y `sherlock-project` están **fijadas a propósito**: sus
-módulos parsean el stdout de esas herramientas, y un cambio de formato al
-actualizar rompería el análisis de forma silenciosa.
+Las versiones de `holehe` y `sherlock-project` están **fijadas a propósito**.
+`sherlock-project` se consume como subproceso y su salida se lee línea a línea.
+De `holehe` se usan directamente sus corrutinas (`holehe.core.import_submodules`
+y `get_functions`), una API interna sin garantías de estabilidad. En ambos casos
+conviene revisar el módulo correspondiente antes de subir la versión.
 
 ---
 
