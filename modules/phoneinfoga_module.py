@@ -2,7 +2,8 @@ import asyncio
 import logging
 import os
 import urllib.parse
-from typing import Any, Callable, List
+from collections.abc import Callable
+from typing import Any
 
 from core.base_module import BaseModule
 
@@ -36,11 +37,11 @@ class PhoneInfogaModule(BaseModule):
         bin_path: str = os.path.join(base_dir, "bin", "phoneinfoga")
         return bin_path
 
-    def _generate_human_variants(self, target: str) -> List[str]:
+    def _generate_human_variants(self, target: str) -> list[str]:
         """Genera variaciones comunes de escritura manual basándose en el objetivo."""
         clean: str = "".join([c for c in target if c.isdigit() or c == "+"])
         digits: str = clean.lstrip("+")
-        variants: List[str] = []
+        variants: list[str] = []
 
         if len(digits) >= 9:
             local: str = digits[-9:]
@@ -71,8 +72,8 @@ class PhoneInfogaModule(BaseModule):
 
     def _build_custom_dorks(self, target: str) -> str:
         """Construye un bloque de texto formateado con enlaces OSINT mutados avanzados."""
-        variants: List[str] = self._generate_human_variants(target)
-        lines: List[str] = [
+        variants: list[str] = self._generate_human_variants(target)
+        lines: list[str] = [
             "\n" + "=" * 60,
             " 🔍 VARIANTES DE BÚSQUEDA HUMANA AVANZADA (PYTHON EXTRA)",
             "=" * 60,
@@ -111,16 +112,16 @@ class PhoneInfogaModule(BaseModule):
 
         if os.path.exists(executable_path):
             if os.access(executable_path, os.X_OK):
-                return ("ok", "Listo")
-            return ("warning", "Faltan permisos de ejecución (chmod +x)")
-        return ("error", "Falta binario ejecutable de PhoneInfoga en el proyecto")
+                return ("ok", "pi_ok")
+            return ("warning", "pi_no_exec")
+        return ("error", "pi_binary_missing")
 
     async def run(self, target: str, callback: Callable[[str], None]) -> dict[str, Any]:
         """Ejecuta el escaneo asíncrono e inyecta dorks condicionalmente."""
         logger.info(f"Iniciando escaneo de PhoneInfoga para el objetivo: {target}")
 
         executable_path: str = self._get_executable_path()
-        cmd: List[str] = [executable_path, "scan", "-n", target]
+        cmd: list[str] = [executable_path, "scan", "-n", target]
 
         if not self._enable_google_search:
             cmd.extend(["-D", "googlesearch"])

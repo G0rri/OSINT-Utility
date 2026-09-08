@@ -38,5 +38,14 @@
   "holehe_missing": "Missing python package holehe.",
   "metadata_ok": "Pillow and PyPDF2 installed correctly.",
   "metadata_deps_missing": "Pillow and PyPDF2 missing. Run pip install pillow pypdf2.",
-  "metadata_partial": "Partial dependencies. Some file types won't be analysable."
+  "metadata_partial": "Partial dependencies. Some file types won't be analysable.",
+  "whois_ok": "WHOIS/DNS module ready. No configuration required.",
+  "subdomains_ok": "Subdomain module ready (crt.sh + HackerTarget).",
+  "ports_ok": "Passive scanner ready (Shodan InternetDB).",
+  "headers_ok": "HTTP header analyser ready.",
+  "wayback_ok": "Wayback Machine module ready (Archive.org CDX API).",
+  "pi_no_exec": "Binary found but it is not executable.\nRun: chmod +x phoneinfoga",
+  "chk_google_search": "Enable Google Search (Dorks)",
+  "chk_insecure_ssl": "Ignore TLS certificate errors (insecure)",
+  "sherlock_ok": "Sherlock module installed and ready."
 }

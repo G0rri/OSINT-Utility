@@ -1,79 +1,137 @@
-Markdown
+# OSINT-Utility V2 🕵️‍♂️
 
-# OSINT-Utility V2 🕵️‍♂️✨
-
-A professional, fully asynchronous, and modular Open Source Intelligence (OSINT) suite built with Python 3.10+ and a modern graphical interface. This platform integrates 10 specialized collection modules under strict production-grade software engineering standards.
-
----
-
-## 🏗️ Architectural Core Features
-
-This version marks the evolution from a collection of scripts into a robust desktop security tool, built around the following technical pillars:
-
-- **Asynchronous Core (`asyncio`):** Entirely non-blocking event loops. Heavy network requests or intensive CLI subprocesses run concurrently on separate tasks, keeping the CustomTkinter GUI completely responsive.
-- **Modular Plugin Architecture (`BaseModule`):** All analytical tools inherit strictly from an Abstract Base Class contract. This ensures rigorous parameter control, predefined execution pipelines, and seamless extensibility for future modules.
-- **Secure Subprocessing (Bastion Guard):** External CLI binaries (such as Sherlock or PhoneInfoga) are invoked using native async executors. Arguments are passed strictly as sanitized lists, and `shell=True` is completely banned across the codebase to neutralize command injection vulnerabilities.
-- **Granular Fault Isolation:** Banned generic `except Exception:` blocks. The application catches specific network exceptions (`httpx.HTTPStatusError`, `httpx.TimeoutException`), socket failures, and system-level input/output anomalies independently, ensuring a single failing endpoint never crashes the environment.
-- **Streamlined Native Logging:** The legacy `print()` functions have been replaced by the native Python `logging` module. A custom Tkinter log handler intercepts execution logs in real-time, safely formatting and injecting them into the GUI console.
+Suite OSINT modular y asíncrona construida con Python 3.10+ y una interfaz
+gráfica basada en CustomTkinter. Integra 10 módulos de recolección bajo una
+arquitectura de plugins común.
 
 ---
 
-## 🛠️ Specialized Modules
+## 🏗️ Arquitectura
 
-| Category          | Module         | Technology / Target       | Description                                                                               |
-| :---------------- | :------------- | :------------------------ | :---------------------------------------------------------------------------------------- |
-| **Identities**    | `Holehe`       | Email OSINT               | Traces email registration footprints across hundreds of sites.                            |
-|                   | `Sherlock`     | Username Tracking         | Correlates social media and forum accounts using exact handles.                           |
-|                   | `PhoneInfoga`  | Phone Intel               | Advanced scanner for phone numbers leveraging external APIs.                              |
-| **Network & Web** | `VirusTotal`   | Reputation Scan           | Passive reputation check via VirusTotal v3 API for IPs/domains.                           |
-|                   | `WHOIS / DNS`  | Domain Records            | Async resolution of A, MX, and TXT entries alongside registrar metadata.                  |
-|                   | `Subdomains`   | Infrastructure Map        | Discovers subdomains via crt.sh/HackerTarget and renders an interactive relational chart. |
-|                   | `Port Scanner` | Passive Mapping           | Passive port scanning powered by Shodan InternetDB.                                       |
-|                   | `HTTP Headers` | Server Hardening          | Evaluates security headers (HSTS, CSP, X-Frame-Options) and flags exposures.              |
-|                   | `Wayback`      | Passive Timeline          | Crawls the internet archive database to locate the oldest indexed snapshot.               |
-| **Forensics**     | `Metadata`     | Local Metadata Extraction | Context-managed metadata extraction from images (EXIF/GPS) and PDF records.               |
+- **Núcleo asíncrono (`asyncio`).** Las peticiones de red y los subprocesos
+  pesados se ejecutan como tareas concurrentes, de modo que la GUI nunca se
+  bloquea. Las llamadas bloqueantes inevitables (`whois`, `socket.gethostbyname`,
+  lectura EXIF/PDF) se delegan a `asyncio.to_thread`.
+- **Arquitectura de plugins (`BaseModule`).** Todos los módulos heredan de una
+  clase base abstracta que impone el mismo contrato: `check_health()` para el
+  diagnóstico previo y `run(target, callback)` para la ejecución. Añadir un
+  módulo nuevo no requiere tocar el resto del sistema.
+- **Subprocesos sin `shell=True`.** Los binarios externos (Sherlock,
+  PhoneInfoga) se invocan mediante `asyncio.create_subprocess_exec` pasando los
+  argumentos como lista. No hay superficie de inyección de comandos.
+- **Manejo de errores específico.** No se usa `except Exception` en ninguna
+  parte del código: cada módulo captura las excepciones concretas que puede
+  producir (`httpx.HTTPStatusError`, `httpx.TimeoutException`, `socket.gaierror`,
+  `dns.resolver.NXDOMAIN`…), de forma que un endpoint caído no tumba la sesión.
+- **Logging nativo.** Sin `print()`. Un handler propio (`CustomTkinterLogHandler`)
+  redirige los registros a la consola de la GUI; es tolerante a la destrucción
+  del widget y reencola en el hilo de la interfaz los registros que llegan desde
+  hilos secundarios.
 
 ---
 
-## 🚀 Deployment and Setup
+## 🛠️ Módulos
 
-### Prerequisites
+| Categoría        | Módulo         | Objetivo             | Descripción                                                            |
+| :--------------- | :------------- | :------------------- | :--------------------------------------------------------------------- |
+| **Identidades**  | `Holehe`       | Email                | Rastrea el registro de un correo en cientos de sitios.                 |
+|                  | `Sherlock`     | Username             | Correlaciona cuentas de redes sociales y foros por handle.             |
+|                  | `PhoneInfoga`  | Teléfono             | Escáner de números apoyado en APIs externas.                           |
+| **Red y Web**    | `VirusTotal`   | Reputación           | Consulta pasiva a la API v3 de VirusTotal para IPs y dominios.         |
+|                  | `WHOIS / DNS`  | Registros de dominio | Resolución asíncrona de A, MX y TXT junto a los datos del registrador. |
+|                  | `Subdominios`  | Infraestructura      | Descubrimiento vía crt.sh y HackerTarget, con grafo interactivo.       |
+|                  | `Port Scanner` | Mapeo pasivo         | Puertos expuestos según Shodan InternetDB (sin enviar tráfico).        |
+|                  | `Cabeceras`    | Hardening HTTP       | Evalúa HSTS, CSP, X-Frame-Options y X-Content-Type-Options.            |
+|                  | `Wayback`      | Línea temporal       | Localiza la captura más antigua en Archive.org.                        |
+| **Forense**      | `Metadatos`    | Ficheros locales     | Extracción de EXIF/GPS en imágenes y del diccionario /Info en PDF.     |
 
-- Linux Operating System (Ubuntu/Debian/Arch/Fedora)
-- Python 3.10 or higher installed
+---
 
-### Automated Launch
+## 🚀 Instalación
 
-The platform provides a secure bash script to handle dependency compilation and isolation automatically. Run the following commands in your terminal:
+### Requisitos
+
+- Linux (Ubuntu/Debian/Arch/Fedora)
+- Python 3.10 o superior
+
+### Puesta en marcha
 
 ```bash
-# 1. Clone the repository
-git clone [https://github.com/G0rri/OSINT-Utility.git](https://github.com/G0rri/OSINT-Utility.git)
+git clone https://github.com/G0rri/OSINT-Utility.git
 cd OSINT-Utility
-
-# 2. Grant execution permissions and run the bootstrap script
 chmod +x start.sh
 ./start.sh
 ```
 
-    ⚙️ Behind the Scenes: start.sh provisions a virtual environment (venv), securely hooks pip within the isolated namespace, satisfies requirements (requirements.txt), verifies/fetches the PhoneInfoga Go binary, and safely launches the graphical central panel.
+`start.sh` crea el entorno virtual, instala las dependencias fijadas en
+`requirements.txt`, copia `.env.example` a `.env` si aún no existe y lanza la
+aplicación.
 
-## 🔑 Secret and API Configuration
+### PhoneInfoga (opcional)
 
-The application implements strict passive validation for development and production secrets. To make use of premium data streams, create a .env file in the root directory of the project:
-Fragmento de código
+El script **no descarga ni ejecuta scripts remotos automáticamente**. Si quieres
+usar el módulo de teléfonos, instala el binario tú mismo desde las releases
+oficiales:
 
-# VirusTotal Configuration
+<https://github.com/sundowndev/phoneinfoga/releases>
 
-VIRUSTOTAL_API_KEY=your_virustotal_api_key_here
+Coloca el ejecutable `phoneinfoga` en la raíz del proyecto. `start.sh` le dará
+permisos de ejecución en el siguiente arranque. Los otros 9 módulos funcionan con
+normalidad sin él.
 
-# PhoneInfoga Scanner Enhancements
+---
 
-NUMVERIFY_API_KEY=your_numverify_key_here
-APILAYER_KEY=your_apilayer_key_here
+## 🔑 Claves de API
 
-    ℹ️ Note: If the secrets are missing or unmodified, the core application will warn you through its logging routines but will maintain its initialization pipeline, gracefully setting the affected modules to an idle warning state (🟠/🔴) without crashing.
+Todas son opcionales. Copia `.env.example` a `.env` y rellena las que quieras:
 
-## ⚠️ Ethical Use Notice / Disclaimer
+```ini
+# Reputación de IPs y dominios
+VIRUSTOTAL_API_KEY=tu_api_key_aqui
 
-Strictly for authorized security testing, educational purposes, and defensive research. Utilizing this tool to gather intelligence against target entities without explicit prior consent may constitute an infringement of privacy regulations or computer abuse acts depending on your jurisdiction. The author and project contributors disclaim all liabilities for misapplication, damages, or illicit overhead incurred through this software stack.
+# Enriquecimiento de PhoneInfoga
+NUMVERIFY_API_KEY=tu_api_key_aqui
+APILAYER_KEY=tu_api_key_aqui
+```
+
+Si faltan, la aplicación arranca igualmente y marca los módulos afectados con un
+semáforo 🟠/🔴; pasa el ratón por encima para ver el motivo.
+
+---
+
+## 🔒 Nota sobre TLS
+
+El módulo de cabeceras **verifica los certificados TLS por defecto**. Un
+certificado caducado, autofirmado o con la cadena rota se reporta como hallazgo
+de la auditoría, no como un error de red. Si necesitas auditar igualmente un host
+en ese estado (típico en preproducción), activa la casilla *«Ignorar errores de
+certificado TLS»* de forma explícita.
+
+---
+
+## 🧪 Desarrollo
+
+```bash
+./venv/bin/python3 -m pip install -r requirements-dev.txt
+./venv/bin/python3 -m pytest        # batería de pruebas (sin red real)
+./venv/bin/python3 -m ruff check .  # linter
+./venv/bin/python3 -m ruff format . # formateo
+```
+
+Las pruebas de red usan `httpx.MockTransport`: no se realiza ninguna petición
+real. La configuración de `ruff` y `pytest` vive en `pyproject.toml`.
+
+Las versiones de `holehe` y `sherlock-project` están **fijadas a propósito**: sus
+módulos parsean el stdout de esas herramientas, y un cambio de formato al
+actualizar rompería el análisis de forma silenciosa.
+
+---
+
+## ⚠️ Aviso de uso ético
+
+Esta herramienta está destinada exclusivamente a pruebas de seguridad
+autorizadas, fines educativos e investigación defensiva. Usarla para recopilar
+información sobre terceros sin su consentimiento previo y explícito puede
+vulnerar la normativa de protección de datos o la legislación sobre delitos
+informáticos según tu jurisdicción. El autor y los contribuidores declinan toda
+responsabilidad por un uso indebido.

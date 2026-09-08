@@ -1,6 +1,7 @@
 import asyncio
 import logging
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 from urllib.parse import urlparse
 
 import httpx
@@ -55,11 +56,11 @@ class SubdomainModule(BaseModule):
                                 sub = sub[2:]
                             if (
                                 sub
+                                and sub != target
                                 and "@" not in sub
-                                and (sub.endswith(f".{target}") or sub == target)
+                                and sub.endswith(f".{target}")
                             ):
-                                if sub != target:
-                                    subdomains.add(sub)
+                                subdomains.add(sub)
                     callback(
                         f"[+] crt.sh: {len(subdomains)} subdominios encontrados.\n"
                     )

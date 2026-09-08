@@ -1,12 +1,28 @@
-customtkinter>=5.2.2
-httpx>=0.27.0
-holehe
-sherlock-project
-python-whois
-dnspython
-Pillow
-PyPDF2
-psutil
-python-dotenv
+# Versiones fijadas: holehe y sherlock-project cambian el formato de su salida
+# de consola entre versiones, y los módulos de este proyecto parsean ese stdout.
+# Actualizar solo tras verificar que el parseo sigue siendo correcto.
+
+# --- Interfaz gráfica ---
+customtkinter==5.2.2
+
+# --- Red / HTTP ---
+httpx==0.28.1
+
+# --- Módulos OSINT de terceros (salida parseada: versión fija obligatoria) ---
+holehe==1.61
+sherlock-project==0.16.0
+
+# --- Resolución de dominios ---
+python-whois==0.9.6
+dnspython==2.8.0
+
+# --- Forense de metadatos ---
+Pillow==12.2.0
+PyPDF2==3.0.1
+
+# --- Utilidades del sistema ---
+psutil==7.2.2
+python-dotenv==1.2.2
+
+# --- Visualización de grafos (networkx entra como dependencia de pyvis) ---
 pyvis==0.3.2
-networkx

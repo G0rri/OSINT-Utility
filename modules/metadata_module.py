@@ -1,7 +1,8 @@
 import asyncio
 import logging
 import os
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 from core.base_module import BaseModule
 
@@ -52,7 +53,7 @@ class MetadataModule(BaseModule):
         """Aísla las lecturas de flujo binario de archivos locales en hilos seguros de procesamiento."""
         callback(f"[*] Analizando metadatos del archivo local: {target}\n")
 
-        if not os.path.exists(target):
+        if not await asyncio.to_thread(os.path.exists, target):
             callback(
                 f"[-] Error crítico: El archivo '{target}' no existe o fue borrado.\n"
             )

@@ -1,7 +1,7 @@
 import asyncio
 import logging
-import socket
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 import dns.asyncresolver
 import dns.exception
@@ -71,7 +71,7 @@ class WhoisDnsModule(BaseModule):
                     "expiration": str(expiration),
                     "name_servers": name_servers,
                 }
-        except (OSError, socket.error) as err:
+        except OSError as err:
             logger.error(
                 "Error de socket o tiempo de espera agotado al conectar al servidor WHOIS: %s",
                 err,

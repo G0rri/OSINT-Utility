@@ -1,6 +1,7 @@
 # core/base_module.py
 from abc import ABC, abstractmethod
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 
 class BaseModule(ABC):

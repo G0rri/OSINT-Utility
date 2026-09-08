@@ -3,6 +3,7 @@ import logging
 import os
 import subprocess
 import tempfile
+import time
 import webbrowser
 
 from pyvis.network import Network
@@ -78,6 +79,9 @@ class NetworkVisualizer:
         }
         """)
 
+        # Los grafos previos se descartan para que /tmp no acumule HTML huérfanos
+        NetworkVisualizer._purge_old_graphs()
+
         # Generar un archivo temporal seguro en /tmp utilizando administradores de contexto with
         file_path: str = ""
         with tempfile.NamedTemporaryFile(
@@ -142,7 +146,7 @@ function saveGraph() {{
 </body>"""
 
         try:
-            with open(file_path, "r", encoding="utf-8") as f:
+            with open(file_path, encoding="utf-8") as f:
                 html_content: str = f.read()
 
             # Reemplazar el </body> final para inyectar el botón antes de cerrar
@@ -158,6 +162,34 @@ function saveGraph() {{
             raise
 
         return file_path
+
+    @staticmethod
+    def _purge_old_graphs(max_age_seconds: int = 86400) -> None:
+        """Elimina los grafos temporales generados en ejecuciones anteriores.
+
+        Solo actúa sobre archivos creados por este propio módulo (prefijo
+        `osint_graph_` y sufijo `.html`) y con más de `max_age_seconds` de vida,
+        para no borrar un grafo que el usuario aún tenga abierto.
+        """
+        temp_dir: str = tempfile.gettempdir()
+        cutoff: float = time.time() - max_age_seconds
+
+        try:
+            entries: list[str] = os.listdir(temp_dir)
+        except OSError as err:
+            logger.debug("No se pudo inspeccionar el directorio temporal: %s", err)
+            return
+
+        for entry in entries:
+            if not (entry.startswith("osint_graph_") and entry.endswith(".html")):
+                continue
+            candidate: str = os.path.join(temp_dir, entry)
+            try:
+                if os.path.getmtime(candidate) < cutoff:
+                    os.remove(candidate)
+                    logger.debug("Grafo temporal caducado eliminado: %s", candidate)
+            except OSError as err:
+                logger.debug("No se pudo eliminar el temporal %s: %s", candidate, err)
 
     @staticmethod
     def open_in_browser(file_path: str) -> None:

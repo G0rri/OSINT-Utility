@@ -132,3 +132,7 @@ phoneinfoga.tar.gz
 # Reportes guardados o outputs temporales
 *.txt
 !requirements.txt
+!requirements-dev.txt
+
+# Entorno y caches de herramientas
+.ruff_cache/

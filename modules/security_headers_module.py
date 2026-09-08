@@ -1,11 +1,26 @@
 import logging
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 import httpx
 
 from core.base_module import BaseModule
 
 logger: logging.Logger = logging.getLogger(__name__)
+
+_TLS_ERROR_MARKERS: tuple[str, ...] = (
+    "certificate",
+    "certificado",
+    "ssl",
+    "tls",
+    "handshake",
+)
+
+
+def _looks_like_tls_failure(err: Exception) -> bool:
+    """Distingue un fallo de validación de certificado de un error de red genérico."""
+    text: str = f"{err}".lower()
+    return any(marker in text for marker in _TLS_ERROR_MARKERS)
 
 
 class SecurityHeadersModule(BaseModule):
@@ -17,6 +32,14 @@ class SecurityHeadersModule(BaseModule):
         self.description: str = (
             "Analiza y verifica las cabeceras HTTP de seguridad de un servidor"
         )
+        # La verificación TLS permanece ACTIVA por defecto: desactivarla en una
+        # herramienta que audita HSTS enmascara certificados rotos o suplantados.
+        self._insecure_ssl: bool = False
+
+    def toggle_insecure_ssl(self, enable: bool) -> None:
+        """Permite ignorar explícitamente los errores de certificado TLS."""
+        self._insecure_ssl = enable
+        logger.debug("SecurityHeaders: verificación TLS desactivada = %s", enable)
 
     def check_health(self) -> tuple[str, str]:
         """Comprueba el estado de salud y dependencias del analizador de cabeceras."""
@@ -38,13 +61,17 @@ class SecurityHeadersModule(BaseModule):
 
         response: httpx.Response | None = None
 
-        # verify=False permite auditar entornos pre-producción con SSL autofirmados o rotos
-        callback(
-            "[*] Nota: Verificación SSL desactivada para alcanzar todos los servidores.\n"
-        )
+        verify_tls: bool = not self._insecure_ssl
+        if verify_tls:
+            callback("[*] Verificación TLS activa (certificados validados).\n")
+        else:
+            callback(
+                "[!] Verificación TLS DESACTIVADA por el usuario: un certificado "
+                "inválido o suplantado no será detectado.\n"
+            )
 
         try:
-            async with httpx.AsyncClient(verify=False) as client:
+            async with httpx.AsyncClient(verify=verify_tls) as client:
                 try:
                     response = await client.head(
                         target, headers=headers_req, follow_redirects=True, timeout=10.0
@@ -137,6 +164,28 @@ class SecurityHeadersModule(BaseModule):
                 "[-] Error de red: Tiempo de espera agotado al conectar con el servidor.\n"
             )
             return {"status": "error", "error": "timeout"}
+
+        except httpx.ConnectError as err:
+            # Un fallo de handshake TLS es un hallazgo de la auditoría, no un
+            # simple error de red: se reporta como tal.
+            if verify_tls and _looks_like_tls_failure(err):
+                logger.warning(
+                    "Handshake TLS rechazado al auditar '%s': %s", target, err
+                )
+                callback(
+                    "[!] HALLAZGO: el certificado TLS del servidor no es válido "
+                    "(caducado, autofirmado o con cadena rota).\n"
+                )
+                callback(f"    Detalle: {err}\n")
+                callback(
+                    "    Marca 'Ignorar errores de certificado TLS' para auditar "
+                    "igualmente las cabeceras de este host.\n"
+                )
+                return {"status": "error", "error": "tls_verification_failed"}
+
+            logger.error("Error de conexión al auditar las cabeceras: %s", err)
+            callback(f"[-] Error de red al intentar conectar con el servidor: {err}\n")
+            return {"status": "error", "error": str(err)}
 
         except httpx.RequestError as err:
             logger.error(

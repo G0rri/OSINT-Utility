@@ -1,7 +1,8 @@
 import asyncio
 import logging
 import sys
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 import psutil
 
@@ -26,7 +27,7 @@ class SherlockModule(BaseModule):
             or importlib.util.find_spec("sherlock") is not None
         )
         if is_installed:
-            return "none", ""
+            return "ok", "sherlock_ok"
         return "error", "sherlock_missing"
 
     async def run(self, target: str, callback: Callable[[str], None]) -> dict[str, Any]:

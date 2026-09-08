@@ -1,8 +1,8 @@
 import asyncio
+import contextlib
 import logging
 import os
 import re
-import sys
 import tkinter as tk
 import webbrowser
 from typing import Any
@@ -11,15 +11,6 @@ import customtkinter as ctk
 import psutil
 from customtkinter import filedialog
 from dotenv import load_dotenv
-
-# ---- INTERCEPTOR MULTIPROCESO (SELF-EXECUTION) ----
-if len(sys.argv) > 1 and sys.argv[1] == "--run-holehe":
-    from holehe import core
-
-    sys.argv = ["holehe", sys.argv[2], "--only-used", "--no-color"]
-    core.main()
-    sys.exit(0)
-# ---------------------------------------------------
 
 # Cargar las claves de API del archivo .env de manera absoluta
 env_path: str = os.path.join(os.path.dirname(__file__), ".env")
@@ -40,18 +31,18 @@ def validar_entorno() -> None:
 validar_entorno()
 
 # Importaciones de la Estructura Modular del Proyecto
-from core.i18n import Translator  # noqa: E402
-from core.logging_handler import CustomTkinterLogHandler  # noqa: E402
-from modules.holehe_module import HoleheModule  # noqa: E402
-from modules.metadata_module import MetadataModule  # noqa: E402
-from modules.phoneinfoga_module import PhoneInfogaModule  # noqa: E402
-from modules.port_scanner_module import PortScannerModule  # noqa: E402
-from modules.security_headers_module import SecurityHeadersModule  # noqa: E402
-from modules.sherlock_module import SherlockModule  # noqa: E402
-from modules.subdomain_module import SubdomainModule  # noqa: E402
-from modules.virustotal_module import VirustotalModule  # noqa: E402
-from modules.wayback_module import WaybackModule  # noqa: E402
-from modules.whois_dns_module import WhoisDnsModule  # noqa: E402
+from core.i18n import Translator
+from core.logging_handler import CustomTkinterLogHandler
+from modules.holehe_module import HoleheModule
+from modules.metadata_module import MetadataModule
+from modules.phoneinfoga_module import PhoneInfogaModule
+from modules.port_scanner_module import PortScannerModule
+from modules.security_headers_module import SecurityHeadersModule
+from modules.sherlock_module import SherlockModule
+from modules.subdomain_module import SubdomainModule
+from modules.virustotal_module import VirustotalModule
+from modules.wayback_module import WaybackModule
+from modules.whois_dns_module import WhoisDnsModule
 
 # Configuración estética global
 ctk.set_appearance_mode("dark")
@@ -136,12 +127,14 @@ class OSINTApp(ctk.CTk):
         self.security_headers_module: SecurityHeadersModule = SecurityHeadersModule()
         self.phoneinfoga_module: PhoneInfogaModule = PhoneInfogaModule()
 
-        # Variable para controlar dinámicamente las búsquedas de PhoneInfoga
+        # Variables para controlar dinámicamente opciones por módulo
         self.google_search_var: ctk.BooleanVar = ctk.BooleanVar(value=False)
+        self.insecure_ssl_var: ctk.BooleanVar = ctk.BooleanVar(value=False)
 
         self.current_task: asyncio.Task[Any] | None = None
         self.is_running: bool = True
         self._rebuilding: bool = False
+        self._log_handler: CustomTkinterLogHandler | None = None
 
         # Mapeo O(1) para evitar bifurcaciones complejas if/elif en runtime
         self._module_map: dict[str, Any] = {
@@ -262,7 +255,7 @@ class OSINTApp(ctk.CTk):
         # Checkbox flotante para PhoneInfoga
         self.chk_google_search: ctk.CTkCheckBox = ctk.CTkCheckBox(
             master=self.tabview.tab(self.translator.get("tab_identities")),
-            text="Habilitar Google Search (Dorks)",
+            text=self.translator.get("chk_google_search"),
             variable=self.google_search_var,
             font=("Helvetica", 12),
             text_color="#FFA500",
@@ -304,6 +297,16 @@ class OSINTApp(ctk.CTk):
             self.red_var,
             "SecurityHeaders",
             self.security_headers_module,
+        )
+
+        # Checkbox flotante para SecurityHeaders: la verificación TLS solo se
+        # desactiva si el usuario lo pide de forma explícita.
+        self.chk_insecure_ssl: ctk.CTkCheckBox = ctk.CTkCheckBox(
+            master=self.tabview.tab(self.translator.get("tab_network")),
+            text=self.translator.get("chk_insecure_ssl"),
+            variable=self.insecure_ssl_var,
+            font=("Helvetica", 12),
+            text_color="#FFA500",
         )
 
         # Pestaña Forense
@@ -419,6 +422,11 @@ class OSINTApp(ctk.CTk):
         self.btn_save.grid(row=0, column=2)
 
         # --- ACOPLAMIENTO CENTRALIZADO DEL LOGGING HANDLER ---
+        # _build_ui puede ejecutarse varias veces (cambio de idioma). Descartamos
+        # siempre el handler anterior: su widget ya fue destruido y, de no hacerlo,
+        # los handlers se acumularían en el logger raíz.
+        self._detach_log_handler()
+
         root_logger: logging.Logger = logging.getLogger()
         root_logger.setLevel(logging.INFO)
         log_handler: CustomTkinterLogHandler = CustomTkinterLogHandler(
@@ -430,6 +438,15 @@ class OSINTApp(ctk.CTk):
         )
         log_handler.setFormatter(log_formatter)
         root_logger.addHandler(log_handler)
+        self._log_handler = log_handler
+
+    def _detach_log_handler(self) -> None:
+        """Retira del logger raíz el handler de consola actualmente registrado."""
+        handler: CustomTkinterLogHandler | None = getattr(self, "_log_handler", None)
+        if handler is not None:
+            logging.getLogger().removeHandler(handler)
+            handler.close()
+            self._log_handler = None
 
     def _open_file_dialog(self) -> None:
         file_path: str = filedialog.askopenfilename(
@@ -503,6 +520,11 @@ class OSINTApp(ctk.CTk):
             self.chk_google_search.pack(side="left", padx=20)
         else:
             self.chk_google_search.pack_forget()
+
+        if choice == "SecurityHeaders":
+            self.chk_insecure_ssl.pack(side="left", padx=10)
+        else:
+            self.chk_insecure_ssl.pack_forget()
 
         key: str | None = _placeholder_keys.get(choice)
         if key:
@@ -609,12 +631,11 @@ class OSINTApp(ctk.CTk):
 
         selected_tool: str = self._get_active_tool_name()
 
-        if selected_tool == "Metadatos":
-            if not os.path.exists(target) or not os.path.isfile(target):
-                self.log_to_console(
-                    f"[-] Error: El archivo en la ruta '{target}' NO EXISTE o es un directorio.\n"
-                )
-                return
+        if selected_tool == "Metadatos" and not os.path.isfile(target):
+            self.log_to_console(
+                f"[-] Error: El archivo en la ruta '{target}' NO EXISTE o es un directorio.\n"
+            )
+            return
 
         self.btn_search.configure(state="disabled")
         self.btn_stop.configure(state="normal")
@@ -631,6 +652,8 @@ class OSINTApp(ctk.CTk):
 
         if selected_tool == "PhoneInfoga":
             active_module.toggle_google_search(self.google_search_var.get())
+        elif selected_tool == "SecurityHeaders":
+            active_module.toggle_insecure_ssl(self.insecure_ssl_var.get())
 
         # CORREGIDO: Eliminamos la inyección redundante del encabezado técnico f"\n--- [ {active_module.name} TASK ] ..."
         # para que la salida gráfica comience directamente con la maquetación estilizada propia del módulo.
@@ -664,14 +687,13 @@ class OSINTApp(ctk.CTk):
 
     def on_closing(self) -> None:
         self.is_running = False
+        self._detach_log_handler()
         try:
             current_pid: int = os.getpid()
             parent: psutil.Process = psutil.Process(current_pid)
             for child in parent.children(recursive=True):
-                try:
+                with contextlib.suppress(psutil.NoSuchProcess):
                     child.kill()
-                except psutil.NoSuchProcess:
-                    pass
         except psutil.Error:
             pass
 
@@ -686,7 +708,16 @@ async def tkinter_async_loop() -> None:
     loop: asyncio.AbstractEventLoop = asyncio.get_running_loop()
     app = OSINTApp(loop)
 
-    app.report_callback_exception = lambda exc, val, tb: None
+    # Las excepciones internas de Tk se registran en lugar de descartarse en
+    # silencio: ocultarlas hacía invisibles fallos reales de la interfaz.
+    def _report_tk_exception(exc: Any, val: Any, tb: Any) -> None:
+        logging.getLogger("OSINTApp.GUI").error(
+            "Excepción no controlada en el bucle de Tkinter: %s: %s",
+            getattr(exc, "__name__", exc),
+            val,
+        )
+
+    app.report_callback_exception = _report_tk_exception
 
     try:
         while app.is_running:

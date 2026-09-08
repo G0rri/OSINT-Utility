@@ -38,5 +38,14 @@
   "holehe_missing": "Falta instalar el paquete de python holehe.",
   "metadata_ok": "Pillow y PyPDF2 instalados correctamente.",
   "metadata_deps_missing": "Faltan Pillow y PyPDF2. Ejecuta pip install pillow pypdf2.",
-  "metadata_partial": "Dependencias parciales. Algunas extensiones no serán analizables."
+  "metadata_partial": "Dependencias parciales. Algunas extensiones no serán analizables.",
+  "whois_ok": "Módulo WHOIS/DNS operativo. No requiere configuración.",
+  "subdomains_ok": "Módulo de subdominios operativo (crt.sh + HackerTarget).",
+  "ports_ok": "Escáner pasivo operativo (Shodan InternetDB).",
+  "headers_ok": "Analizador de cabeceras HTTP operativo.",
+  "wayback_ok": "Módulo Wayback Machine operativo (API CDX de Archive.org).",
+  "pi_no_exec": "El binario existe pero no tiene permisos de ejecución.\nEjecuta: chmod +x phoneinfoga",
+  "chk_google_search": "Habilitar Google Search (Dorks)",
+  "chk_insecure_ssl": "Ignorar errores de certificado TLS (inseguro)",
+  "sherlock_ok": "Módulo Sherlock instalado y listo."
 }

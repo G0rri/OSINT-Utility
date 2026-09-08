@@ -1,7 +1,8 @@
 import asyncio
 import logging
 import socket
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 import httpx
 
