@@ -46,6 +46,8 @@
   "wayback_ok": "Módulo Wayback Machine operativo (API CDX de Archive.org).",
   "pi_no_exec": "El binario existe pero no tiene permisos de ejecución.\nEjecuta: chmod +x phoneinfoga",
   "chk_google_search": "Habilitar Google Search (Dorks)",
-  "chk_insecure_ssl": "Ignorar errores de certificado TLS (inseguro)",
-  "sherlock_ok": "Módulo Sherlock instalado y listo."
+  "chk_insecure_ssl": "Ignorar errores TLS",
+  "sherlock_ok": "Módulo Sherlock instalado y listo.",
+  "chk_insecure_ssl_tip": "Desactiva la validación del certificado del servidor.\nÚsalo solo para auditar hosts de preproducción con TLS roto:\nun certificado caducado o suplantado dejará de detectarse.",
+  "chk_google_search_tip": "Ejecuta Google Dorks sobre variantes del número.\nGenera muchas consultas: Google puede pedirte un captcha."
 }

@@ -42,6 +42,7 @@ class ToolOption:
 
     label_key: str
     setter: str
+    tooltip_key: str | None = None
     default: bool = False
 
 
@@ -87,7 +88,11 @@ TOOLS: tuple[ToolSpec, ...] = (
         label_key="phoneinfoga_desc",
         placeholder_key="placeholder_phoneinfoga",
         factory=PhoneInfogaModule,
-        option=ToolOption(label_key="chk_google_search", setter="toggle_google_search"),
+        option=ToolOption(
+            label_key="chk_google_search",
+            setter="toggle_google_search",
+            tooltip_key="chk_google_search_tip",
+        ),
     ),
     ToolSpec(
         key="VirusTotal",
@@ -123,7 +128,11 @@ TOOLS: tuple[ToolSpec, ...] = (
         label_key="headers_desc",
         placeholder_key="placeholder_headers",
         factory=SecurityHeadersModule,
-        option=ToolOption(label_key="chk_insecure_ssl", setter="toggle_insecure_ssl"),
+        option=ToolOption(
+            label_key="chk_insecure_ssl",
+            setter="toggle_insecure_ssl",
+            tooltip_key="chk_insecure_ssl_tip",
+        ),
     ),
     ToolSpec(
         key="Metadatos",

@@ -12,7 +12,7 @@ from customtkinter import filedialog
 
 from core.i18n import Translator
 from core.logging_handler import CustomTkinterLogHandler
-from core.registry import ToolRegistry, ToolSpec
+from core.registry import CATEGORIES, ToolRegistry, ToolSpec
 from ui.console import ConsoleView
 from ui.runner import TaskRunner
 from ui.toolbar import ToolSelector
@@ -110,7 +110,16 @@ class OSINTApp(ctk.CTk):
         )
         self.search_bar_frame.grid_columnconfigure(0, weight=1)
 
-        self.target_entry: ctk.CTkEntry = ctk.CTkEntry(self.search_bar_frame)
+        default_tool: str = self.registry.default_for(CATEGORIES[0].key)
+        default_spec: ToolSpec | None = self.registry.spec(default_tool)
+        self.target_entry: ctk.CTkEntry = ctk.CTkEntry(
+            self.search_bar_frame,
+            placeholder_text=(
+                self.translator.get(default_spec.placeholder_key)
+                if default_spec is not None
+                else ""
+            ),
+        )
         self.target_entry.grid(row=0, column=0, padx=(0, 5), pady=0, sticky="ew")
 
         self.btn_file: ctk.CTkButton = ctk.CTkButton(
@@ -220,12 +229,15 @@ class OSINTApp(ctk.CTk):
         if spec is None:
             return
 
-        placeholder: str = self.translator.get(spec.placeholder_key)
-        current: str = self.target_entry.get()
+        # Se mueve el foco fuera del campo: CustomTkinter oculta el placeholder
+        # mientras la entrada está enfocada.
         self.focus()
-        self.target_entry.configure(placeholder_text=placeholder)
-        if not current:
-            self.target_entry.delete(0, "end")
+        # configure() ya decide solo: si el usuario escribió algo lo respeta, y
+        # si está vacía activa e inserta el nuevo texto. Borrar después dejaba
+        # el campo en blanco con el placeholder marcado como activo.
+        self.target_entry.configure(
+            placeholder_text=self.translator.get(spec.placeholder_key)
+        )
 
     def _change_language(self, new_lang: str) -> None:
         self.translator.load_lang(new_lang)

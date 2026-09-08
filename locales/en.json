@@ -46,6 +46,8 @@
   "wayback_ok": "Wayback Machine module ready (Archive.org CDX API).",
   "pi_no_exec": "Binary found but it is not executable.\nRun: chmod +x phoneinfoga",
   "chk_google_search": "Enable Google Search (Dorks)",
-  "chk_insecure_ssl": "Ignore TLS certificate errors (insecure)",
-  "sherlock_ok": "Sherlock module installed and ready."
+  "chk_insecure_ssl": "Ignore TLS errors",
+  "sherlock_ok": "Sherlock module installed and ready.",
+  "chk_insecure_ssl_tip": "Disables validation of the server certificate.\nUse it only to audit pre-production hosts with broken TLS:\nan expired or spoofed certificate will no longer be detected.",
+  "chk_google_search_tip": "Runs Google Dorks over variants of the number.\nIt issues many queries: Google may show you a captcha."
 }

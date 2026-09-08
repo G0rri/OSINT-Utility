@@ -69,6 +69,10 @@ def test_todas_las_claves_de_traduccion_existen(lang: str) -> None:
             assert spec.option.label_key in catalog, (
                 f"{spec.key}: falta '{spec.option.label_key}' en {lang}.json"
             )
+            if spec.option.tooltip_key:
+                assert spec.option.tooltip_key in catalog, (
+                    f"{spec.key}: falta '{spec.option.tooltip_key}' en {lang}.json"
+                )
 
 
 def test_las_fabricas_producen_modulos_validos(registry: ToolRegistry) -> None:

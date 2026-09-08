@@ -105,13 +105,16 @@ class ToolSelector(ctk.CTkTabview):
             var = ctk.BooleanVar(value=option.default)
             self._option_vars[spec.key] = var
 
-        self._option_widgets[spec.key] = ctk.CTkCheckBox(
+        checkbox: ctk.CTkCheckBox = ctk.CTkCheckBox(
             master=self.tab(tab_name),
             text=self._translator.get(option.label_key),
             variable=var,
             font=("Helvetica", 12),
             text_color="#FFA500",
         )
+        if option.tooltip_key:
+            tooltip.attach(checkbox, self._translator.get(option.tooltip_key))
+        self._option_widgets[spec.key] = checkbox
 
     # ------------------------------------------------------------------
     # Estado
