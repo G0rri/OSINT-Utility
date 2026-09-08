@@ -14,8 +14,11 @@ arquitectura de plugins común.
   lectura EXIF/PDF) se delegan a `asyncio.to_thread`.
 - **Arquitectura de plugins (`BaseModule`).** Todos los módulos heredan de una
   clase base abstracta que impone el mismo contrato: `check_health()` para el
-  diagnóstico previo y `run(target, callback)` para la ejecución. Añadir un
-  módulo nuevo no requiere tocar el resto del sistema.
+  diagnóstico previo y `run(target, callback)` para la ejecución.
+- **Catálogo declarativo (`core/registry.py`).** La interfaz se construye a
+  partir de una tabla de `ToolSpec`. Dar de alta un módulo es añadir una entrada
+  con su categoría, sus claves de traducción y su fábrica; no hay que tocar la
+  interfaz.
 - **Subprocesos sin `shell=True`.** Los binarios externos (Sherlock,
   PhoneInfoga) se invocan mediante `asyncio.create_subprocess_exec` pasando los
   argumentos como lista. No hay superficie de inyección de comandos.
@@ -109,6 +112,39 @@ certificado TLS»* de forma explícita.
 
 ---
 
+## 📂 Estructura
+
+```
+main.py                  Punto de entrada: bootstrap + bucle asyncio/Tkinter
+core/
+  base_module.py         Contrato abstracto de los módulos
+  config.py              Carga del .env y validación pasiva de claves
+  registry.py            Catálogo declarativo de herramientas y categorías
+  i18n.py                Traductor ES/EN
+  logging_handler.py     Puente entre logging y la consola de la GUI
+  visualizer.py          Grafos interactivos de subdominios
+modules/                 Los 10 módulos OSINT, uno por fichero
+ui/
+  app.py                 Ventana principal: ensambla y coordina
+  toolbar.py             Pestañas, semáforos de estado y casillas de opción
+  console.py             Consola de salida: colores, enlaces y exportación
+  runner.py              Despachador de las tareas asíncronas
+  tooltip.py             Tooltips flotantes
+tests/                   Batería de pruebas (sin red real)
+```
+
+### Añadir un módulo nuevo
+
+1. Crea `modules/mi_modulo.py` heredando de `BaseModule` e implementa
+   `check_health()` y `run()`.
+2. Añade sus textos a `locales/es.json` y `locales/en.json`.
+3. Añade una entrada `ToolSpec` en `core/registry.py`.
+
+La interfaz, el placeholder, el semáforo de estado y el despacho de la tarea se
+generan solos. `tests/test_registry.py` verifica que la entrada es coherente.
+
+---
+
 ## 🧪 Desarrollo
 
 ```bash
@@ -119,7 +155,8 @@ certificado TLS»* de forma explícita.
 ```
 
 Las pruebas de red usan `httpx.MockTransport`: no se realiza ninguna petición
-real. La configuración de `ruff` y `pytest` vive en `pyproject.toml`.
+real. `tests/test_registry.py` valida que cada entrada del catálogo apunte a
+claves de traducción existentes y a métodos que el módulo implementa. La configuración de `ruff` y `pytest` vive en `pyproject.toml`.
 
 Las versiones de `holehe` y `sherlock-project` están **fijadas a propósito**: sus
 módulos parsean el stdout de esas herramientas, y un cambio de formato al

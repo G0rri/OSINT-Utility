@@ -31,8 +31,6 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-# main.py debe cargar el .env antes de importar los módulos que leen su entorno.
-"main.py" = ["E402"]
 # Las pruebas acceden a atributos internos a propósito.
 "tests/*" = ["SLF001"]
 
