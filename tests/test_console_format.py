@@ -44,3 +44,36 @@ def test_la_url_no_incluye_espacios() -> None:
     match = _URL_PATTERN.search("https://example.com/ruta con espacios")
     assert match is not None
     assert match.group() == "https://example.com/ruta"
+
+
+# ------------------------------------------------- avisos del caso
+
+
+@pytest.mark.parametrize(
+    ("texto", "esperado"),
+    [
+        ("[#] 9 hallazgos nuevos en el caso\n", "caso"),
+        ("[>] Pivotando sobre 1.2.3.4\n", "caso"),
+    ],
+)
+def test_los_avisos_del_caso_tienen_color_propio(texto: str, esperado: str) -> None:
+    """No deben confundirse con la salida de un módulo."""
+    assert ConsoleView._tag_for(texto) == esperado
+
+
+@pytest.mark.parametrize(
+    ("texto", "pos", "largo", "esperado"),
+    [
+        # example.com dentro de mail.example.com no debe marcarse.
+        ("mail.example.com", 5, 11, False),
+        ("ver example.com aqui", 4, 11, True),
+        ("example.com", 0, 11, True),
+        ("(example.com)", 1, 11, True),
+        ("https://example.com/x", 8, 11, False),
+        ("sub.example.com.br", 4, 11, False),
+    ],
+)
+def test_limites_de_palabra_al_marcar(
+    texto: str, pos: int, largo: int, esperado: bool
+) -> None:
+    assert ConsoleView._es_limite(texto, pos, largo) is esperado

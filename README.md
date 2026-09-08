@@ -15,6 +15,13 @@ arquitectura de plugins común.
 - **Arquitectura de plugins (`BaseModule`).** Todos los módulos heredan de una
   clase base abstracta que impone el mismo contrato: `check_health()` para el
   diagnóstico previo y `run(target, callback)` para la ejecución.
+- **Caso con encadenamiento (`core/case.py`).** Los resultados de cada módulo ya
+  no se descartan: se acumulan como hallazgos tipados con su procedencia (qué
+  herramienta los produjo y sobre qué objetivo). Cada herramienta declara qué
+  tipos de entidad **consume** y cuáles **produce**, así que la aplicación sabe
+  sola que la IP descubierta por WHOIS puede alimentar al escáner de puertos.
+  Clic derecho sobre cualquier hallazgo subrayado de la consola ofrece las
+  herramientas aplicables. El encadenamiento no está cableado: sale del catálogo.
 - **Catálogo declarativo (`core/registry.py`).** La interfaz se construye a
   partir de una tabla de `ToolSpec`. Dar de alta un módulo es añadir una entrada
   con su categoría, sus claves de traducción y su fábrica; no hay que tocar la
@@ -115,6 +122,31 @@ certificado TLS»* de forma explícita.
 
 ---
 
+## 🔗 Cómo encadenar herramientas
+
+La consola subraya en ámbar los hallazgos que la aplicación sabe reutilizar.
+**Clic derecho sobre uno** despliega las herramientas que lo aceptan:
+
+```
+WHOIS sobre github.com
+  └─ descubre 140.82.121.3  → clic derecho → Puertos / VirusTotal
+  └─ descubre 8 name servers → clic derecho → WHOIS / Subdominios / …
+
+Subdominios sobre example.com
+  └─ cada subdominio es un dominio → Cabeceras / Puertos / Wayback
+```
+
+Los hallazgos se acumulan durante toda la sesión y sobreviven al cambio de
+herramienta y de idioma. La consola informa del total con la marca `[#]`, y de
+cada salto con `[>]`.
+
+No todo es encadenable, y es deliberado: un servicio donde hay una cuenta
+registrada o el nombre de una filtración son hallazgos **terminales**. Aparecen
+en el caso pero no ofrecen acciones, porque ninguna herramienta los acepta como
+objetivo.
+
+---
+
 ## 📂 Estructura
 
 ```
@@ -123,6 +155,8 @@ core/
   base_module.py         Contrato abstracto de los módulos
   config.py              Carga del .env y validación pasiva de claves
   registry.py            Catálogo declarativo de herramientas y categorías
+  case.py                Modelo del caso: hallazgos tipados y su procedencia
+  extractors.py          Traduce el resultado de cada módulo a hallazgos
   i18n.py                Traductor ES/EN
   logging_handler.py     Puente entre logging y la consola de la GUI
   visualizer.py          Grafos interactivos de subdominios
@@ -141,10 +175,13 @@ tests/                   Batería de pruebas (sin red real)
 1. Crea `modules/mi_modulo.py` heredando de `BaseModule` e implementa
    `check_health()` y `run()`.
 2. Añade sus textos a `locales/es.json` y `locales/en.json`.
-3. Añade una entrada `ToolSpec` en `core/registry.py`.
+3. Añade una entrada `ToolSpec` en `core/registry.py`, declarando qué tipos de
+   entidad `consume` y cuáles `produce`.
+4. Si produce algo, escribe su extractor en `core/extractors.py`: recibe el
+   diccionario que devuelve `run()` y lo traduce a hallazgos tipados.
 
-La interfaz, el placeholder, el semáforo de estado y el despacho de la tarea se
-generan solos. `tests/test_registry.py` verifica que la entrada es coherente.
+La interfaz, el placeholder, el semáforo de estado, el despacho de la tarea y
+las acciones de clic derecho se generan solos. `tests/test_registry.py` verifica que la entrada es coherente.
 
 ---
 

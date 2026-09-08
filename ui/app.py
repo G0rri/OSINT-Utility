@@ -5,11 +5,14 @@ import contextlib
 import logging
 import os
 import tkinter as tk
+from typing import Any
 
 import customtkinter as ctk
 import psutil
 from customtkinter import filedialog
 
+from core.base_module import BaseModule
+from core.case import Caso, Entidad, Hallazgo, es_pivotable
 from core.i18n import Translator
 from core.logging_handler import CustomTkinterLogHandler
 from core.registry import CATEGORIES, ToolRegistry, ToolSpec
@@ -33,6 +36,9 @@ class OSINTApp(ctk.CTk):
 
         self.translator: Translator = Translator("ES")
         self.registry: ToolRegistry = ToolRegistry()
+        # Memoria de la investigación: sobrevive a los cambios de idioma y de
+        # herramienta, y es lo que permite encadenar unas con otras.
+        self.caso: Caso = Caso()
 
         self.title(self.translator.get("app_title"))
         self.geometry("950x740")
@@ -51,6 +57,7 @@ class OSINTApp(ctk.CTk):
             write=self._write,
             on_start=self._lock_controls,
             on_finish=self._restore_ui_controls,
+            on_result=self._ingerir_resultado,
         )
 
         self._build_ui()
@@ -66,7 +73,9 @@ class OSINTApp(ctk.CTk):
         self._build_header()
         self._build_search_bar()
 
-        self.console: ConsoleView = ConsoleView(self)
+        self.console: ConsoleView = ConsoleView(
+            self, on_entity_menu=self._mostrar_menu_entidad
+        )
         self.console.grid(row=1, column=0, padx=20, pady=(0, 10), sticky="nsew")
 
         self._build_footer()
@@ -212,6 +221,115 @@ class OSINTApp(ctk.CTk):
 
     def save_report(self) -> None:
         self.console.save_report()
+
+    # ------------------------------------------------------------------
+    # Caso: ingesta de resultados y pivotado
+    # ------------------------------------------------------------------
+
+    def _ingerir_resultado(
+        self, module: BaseModule, target: str, resultado: dict[str, Any]
+    ) -> None:
+        """Convierte el resultado de un módulo en hallazgos del caso."""
+        spec: ToolSpec | None = self.registry.spec(self._clave_de(module))
+        if spec is None:
+            return
+
+        try:
+            extraidos = spec.extractor(resultado)
+        except (KeyError, TypeError, ValueError) as err:
+            logger.error("No se pudo extraer el resultado de %s: %s", spec.key, err)
+            return
+
+        nuevos: list[Hallazgo] = self.caso.incorporar(
+            [
+                Hallazgo(
+                    tipo=tipo, valor=valor, origen=spec.key, desde=target, detalle=det
+                )
+                for tipo, valor, det in extraidos
+            ]
+        )
+
+        if nuevos:
+            accionables: int = sum(1 for h in nuevos if es_pivotable(h.tipo))
+            self._write(
+                f"\n[#] {len(nuevos)} hallazgos nuevos en el caso "
+                f"({accionables} accionables con clic derecho). "
+                f"Total acumulado: {len(self.caso)}.\n"
+            )
+
+        # Se remarca toda la consola: los hallazgos de esta ejecución y los que
+        # ya se conocían de ejecuciones anteriores.
+        self.console.marcar_entidades(self.caso.indice_por_valor())
+
+    def _clave_de(self, module: BaseModule) -> str:
+        """Clave de catálogo correspondiente a una instancia de módulo."""
+        for spec in self.registry:
+            if self.registry.module(spec.key) is module:
+                return spec.key
+        return ""
+
+    def _mostrar_menu_entidad(
+        self, valor: str, tipo: Entidad, x_root: int, y_root: int
+    ) -> None:
+        """Despliega las herramientas aplicables a un hallazgo concreto.
+
+        El menú no está cableado: sale de preguntarle al catálogo qué acepta ese
+        tipo de entidad.
+        """
+        menu: tk.Menu = tk.Menu(
+            self, tearoff=0, bg="#2d2d2d", fg="white", activebackground="#1a6db5"
+        )
+        menu.add_command(label=f"{tipo.etiqueta}: {valor}", state="disabled")
+        menu.add_separator()
+
+        aplicables: list[ToolSpec] = self.registry.herramientas_para(tipo)
+        if not aplicables:
+            menu.add_command(label="Sin herramientas para este tipo", state="disabled")
+        else:
+            ocupado: bool = self.runner.is_running
+            for spec in aplicables:
+                menu.add_command(
+                    label=self.translator.get(spec.label_key),
+                    state="disabled" if ocupado else "normal",
+                    command=lambda s=spec, v=valor: self._pivotar(s, v),
+                )
+
+        menu.add_separator()
+        menu.add_command(
+            label="Copiar", command=lambda: self._copiar_al_portapapeles(valor)
+        )
+
+        try:
+            menu.tk_popup(x_root, y_root)
+        finally:
+            menu.grab_release()
+
+    def _pivotar(self, spec: ToolSpec, valor: str) -> None:
+        """Ejecuta una herramienta sobre un hallazgo del caso."""
+        if self.runner.is_running:
+            return
+
+        self._seleccionar_herramienta(spec)
+        self.target_entry.configure(state="normal")
+        self.target_entry.delete(0, "end")
+        self.target_entry.insert(0, valor)
+        self._write(
+            f"\n[>] Pivotando sobre {valor} con {self.translator.get(spec.label_key)}\n"
+        )
+        self.run_tool_action()
+
+    def _seleccionar_herramienta(self, spec: ToolSpec) -> None:
+        """Lleva la interfaz a la pestaña y el radio de una herramienta."""
+        categoria = next((c for c in CATEGORIES if c.key == spec.category), None)
+        if categoria is None:
+            return
+        self.tools.set(self.translator.get(categoria.label_key))
+        self.tools.seleccionar(spec)
+        self._on_tool_change()
+
+    def _copiar_al_portapapeles(self, valor: str) -> None:
+        self.clipboard_clear()
+        self.clipboard_append(valor)
 
     # ------------------------------------------------------------------
     # Selección de herramienta

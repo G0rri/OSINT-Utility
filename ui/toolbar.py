@@ -132,6 +132,12 @@ class ToolSelector(ctk.CTkTabview):
     def active_spec(self) -> ToolSpec | None:
         return self._registry.spec(self.active_tool)
 
+    def seleccionar(self, spec: ToolSpec) -> None:
+        """Marca una herramienta como activa dentro de su categoría."""
+        variable: ctk.StringVar | None = self._selection.get(spec.category)
+        if variable is not None:
+            variable.set(spec.key)
+
     def refresh_options(self) -> None:
         """Muestra solo la casilla de la herramienta activa."""
         active: str = self.active_tool

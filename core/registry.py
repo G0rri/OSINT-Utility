@@ -9,7 +9,9 @@ tanto la interfaz como el despachador de tareas se construyen a partir de ella.
 from collections.abc import Callable
 from dataclasses import dataclass, field
 
+from core import extractors
 from core.base_module import BaseModule
+from core.case import Entidad
 from modules.holehe_module import HoleheModule
 from modules.metadata_module import MetadataModule
 from modules.phoneinfoga_module import PhoneInfogaModule
@@ -58,6 +60,14 @@ class ToolSpec:
     option: ToolOption | None = None
     needs_file: bool = False
 
+    # Tipos de entidad que la herramienta acepta como objetivo. Es lo que
+    # permite ofrecer acciones sobre un hallazgo sin cablear cada cadena a mano.
+    consume: tuple[Entidad, ...] = ()
+    # Tipos que la herramienta puede descubrir, y función que los extrae de su
+    # diccionario de resultado.
+    produce: tuple[Entidad, ...] = ()
+    extractor: extractors.Extractor = extractors.sin_hallazgos
+
 
 CATEGORIES: tuple[Category, ...] = (
     Category(key="identities", label_key="tab_identities", padx=20),
@@ -74,6 +84,9 @@ TOOLS: tuple[ToolSpec, ...] = (
         label_key="holehe_desc",
         placeholder_key="placeholder_holehe",
         factory=HoleheModule,
+        consume=(Entidad.EMAIL,),
+        produce=(Entidad.SERVICIO, Entidad.BRECHA, Entidad.URL),
+        extractor=extractors.holehe,
     ),
     ToolSpec(
         key="Sherlock",
@@ -81,6 +94,9 @@ TOOLS: tuple[ToolSpec, ...] = (
         label_key="sherlock_desc",
         placeholder_key="placeholder_sherlock",
         factory=SherlockModule,
+        consume=(Entidad.USERNAME,),
+        produce=(Entidad.URL,),
+        extractor=extractors.sherlock,
     ),
     ToolSpec(
         key="PhoneInfoga",
@@ -93,6 +109,7 @@ TOOLS: tuple[ToolSpec, ...] = (
             setter="toggle_google_search",
             tooltip_key="chk_google_search_tip",
         ),
+        consume=(Entidad.TELEFONO,),
     ),
     ToolSpec(
         key="VirusTotal",
@@ -100,6 +117,7 @@ TOOLS: tuple[ToolSpec, ...] = (
         label_key="virustotal_desc",
         placeholder_key="placeholder_virustotal",
         factory=VirustotalModule,
+        consume=(Entidad.DOMINIO, Entidad.IP),
     ),
     ToolSpec(
         key="WHOIS",
@@ -107,6 +125,9 @@ TOOLS: tuple[ToolSpec, ...] = (
         label_key="whois_desc",
         placeholder_key="placeholder_whois",
         factory=WhoisDnsModule,
+        consume=(Entidad.DOMINIO,),
+        produce=(Entidad.IP, Entidad.DOMINIO),
+        extractor=extractors.whois_dns,
     ),
     ToolSpec(
         key="Subdominios",
@@ -114,6 +135,9 @@ TOOLS: tuple[ToolSpec, ...] = (
         label_key="subdomains_desc",
         placeholder_key="placeholder_subdomains",
         factory=SubdomainModule,
+        consume=(Entidad.DOMINIO,),
+        produce=(Entidad.DOMINIO,),
+        extractor=extractors.subdominios,
     ),
     ToolSpec(
         key="PortScanner",
@@ -121,6 +145,9 @@ TOOLS: tuple[ToolSpec, ...] = (
         label_key="ports_desc",
         placeholder_key="placeholder_ports",
         factory=PortScannerModule,
+        consume=(Entidad.DOMINIO, Entidad.IP),
+        produce=(Entidad.IP, Entidad.PUERTO),
+        extractor=extractors.escaner_puertos,
     ),
     ToolSpec(
         key="SecurityHeaders",
@@ -133,6 +160,7 @@ TOOLS: tuple[ToolSpec, ...] = (
             setter="toggle_insecure_ssl",
             tooltip_key="chk_insecure_ssl_tip",
         ),
+        consume=(Entidad.DOMINIO, Entidad.URL),
     ),
     ToolSpec(
         key="Metadatos",
@@ -141,6 +169,9 @@ TOOLS: tuple[ToolSpec, ...] = (
         placeholder_key="placeholder_metadata",
         factory=MetadataModule,
         needs_file=True,
+        consume=(Entidad.FICHERO,),
+        produce=(Entidad.COORDENADA,),
+        extractor=extractors.metadatos,
     ),
     ToolSpec(
         key="Wayback",
@@ -148,6 +179,9 @@ TOOLS: tuple[ToolSpec, ...] = (
         label_key="wayback_desc",
         placeholder_key="placeholder_wayback",
         factory=WaybackModule,
+        consume=(Entidad.DOMINIO, Entidad.URL),
+        produce=(Entidad.URL,),
+        extractor=extractors.wayback,
     ),
 )
 
@@ -176,6 +210,15 @@ class ToolRegistry:
     def specs_for(self, category: str) -> list[ToolSpec]:
         """Herramientas de una categoría, en orden de aparición."""
         return [spec for spec in TOOLS if spec.category == category]
+
+    def herramientas_para(self, tipo: Entidad) -> list[ToolSpec]:
+        """Herramientas que aceptan ese tipo de entidad como objetivo.
+
+        Es lo que convierte un hallazgo en accionable: dado un DOMINIO nuevo, el
+        catálogo ya sabe que WHOIS, Subdominios, Puertos, VirusTotal, Cabeceras
+        y Wayback pueden trabajar sobre él, sin cablear ninguna cadena a mano.
+        """
+        return [spec for spec in TOOLS if tipo in spec.consume]
 
     def default_for(self, category: str) -> str:
         """Clave de la herramienta seleccionada por defecto en una categoría."""

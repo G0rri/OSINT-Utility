@@ -49,12 +49,15 @@ class PortScannerModule(BaseModule):
 
         url: str = f"https://internetdb.shodan.io/{ip}"
 
+        puertos_abiertos: list[int] = []
+
         async with httpx.AsyncClient() as client:
             try:
                 response: httpx.Response = await client.get(url, timeout=10.0)
                 if response.status_code == 200:
                     data: dict[str, Any] = response.json()
                     ports: list[int] = data.get("ports", [])
+                    puertos_abiertos = list(ports)
                     if ports:
                         callback("[+] Puertos abiertos detectados externamente:\n")
                         for p in ports:
@@ -87,4 +90,10 @@ class PortScannerModule(BaseModule):
                 callback(f"[-] Error de red al consultar Shodan: {err}\n")
 
         callback("\n[+] Escaneo finalizado.\n")
-        return {"status": "success"}
+        # La IP y los puertos se devuelven para que el caso pueda encadenarlos.
+        return {
+            "status": "success",
+            "target": target,
+            "ip": ip,
+            "ports": puertos_abiertos,
+        }

@@ -23,11 +23,15 @@ class TaskRunner:
         write: Callable[[str], None],
         on_start: Callable[[], None],
         on_finish: Callable[[], None],
+        on_result: Callable[[BaseModule, str, dict[str, Any]], None] | None = None,
     ) -> None:
         self._loop: asyncio.AbstractEventLoop = loop
         self._write: Callable[[str], None] = write
         self._on_start: Callable[[], None] = on_start
         self._on_finish: Callable[[], None] = on_finish
+        self._on_result: Callable[[BaseModule, str, dict[str, Any]], None] | None = (
+            on_result
+        )
         self._task: asyncio.Task[Any] | None = None
 
     @property
@@ -50,7 +54,11 @@ class TaskRunner:
 
     async def _execute(self, module: BaseModule, target: str) -> None:
         try:
-            await module.run(target, self._write)
+            # El diccionario de resultado se entrega al caso en lugar de
+            # descartarse: es lo que permite encadenar una herramienta con otra.
+            resultado: dict[str, Any] = await module.run(target, self._write)
+            if self._on_result is not None and isinstance(resultado, dict):
+                self._on_result(module, target, resultado)
         except asyncio.CancelledError:
             self._write("\n[!] Tarea cancelada por el usuario.\n")
         except (RuntimeError, ValueError, OSError) as err:

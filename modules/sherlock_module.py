@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import re
 import sys
 from collections.abc import Callable
 from typing import Any
@@ -9,6 +10,8 @@ import psutil
 from core.base_module import BaseModule
 
 logger: logging.Logger = logging.getLogger(__name__)
+
+_URL_RE: re.Pattern[str] = re.compile(r"https?://[^\s]+")
 
 
 class SherlockModule(BaseModule):
@@ -34,6 +37,10 @@ class SherlockModule(BaseModule):
         """Lanza de forma asíncrona y aislada el escaneo de sitios web."""
         callback(f"[*] Iniciando búsqueda Sherlock para el usuario: {target}\n")
 
+        # Los perfiles se recogen mientras se transmiten, para devolverlos y que
+        # el caso pueda encadenarlos sin volver a leer la consola.
+        perfiles: list[str] = []
+
         cmd: list[str] = [
             sys.executable,
             "-m",
@@ -57,7 +64,7 @@ class SherlockModule(BaseModule):
                 )
 
             async def _stream_reader(
-                stream: asyncio.StreamReader, prefix: str = ""
+                stream: asyncio.StreamReader, prefix: str = "", recoger: bool = False
             ) -> None:
                 while True:
                     line_bytes: bytes = await stream.readline()
@@ -67,12 +74,14 @@ class SherlockModule(BaseModule):
                         "\r\n"
                     )
                     if line:
+                        if recoger:
+                            self._recoger_perfil(line, perfiles)
                         callback(f"{prefix}{line}\n")
                         await asyncio.sleep(0.001)
 
             # Consumo simultáneo seguro de flujos de datos
             await asyncio.gather(
-                _stream_reader(self._process.stdout, prefix="    "),
+                _stream_reader(self._process.stdout, prefix="    ", recoger=True),
                 _stream_reader(self._process.stderr, prefix="    [!] "),
             )
             await self._process.wait()
@@ -89,7 +98,23 @@ class SherlockModule(BaseModule):
             self._process = None
 
         callback("\n[+] Búsqueda en Sherlock finalizada.\n")
-        return {"status": "success", "target": target}
+        return {"status": "success", "target": target, "profiles": perfiles}
+
+    @staticmethod
+    def _recoger_perfil(linea: str, perfiles: list[str]) -> None:
+        """Extrae la URL de perfil de una línea de acierto de Sherlock.
+
+        Sherlock imprime los aciertos como `[+] Sitio: https://...`. Solo se
+        recoge la URL, que es el dato encadenable; el texto de la línea sigue
+        yendo a la consola sin alterar.
+        """
+        if "[+]" not in linea:
+            return
+        match = _URL_RE.search(linea)
+        if match:
+            url: str = match.group()
+            if url not in perfiles:
+                perfiles.append(url)
 
     def _kill_process_tree(self) -> None:
         """Termina de forma segura el árbol de procesos para evitar hilos zombies."""

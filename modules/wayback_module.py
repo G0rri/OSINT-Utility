@@ -30,6 +30,8 @@ class WaybackModule(BaseModule):
             "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36"
         }
 
+        snapshot: dict[str, str] = {}
+
         async with httpx.AsyncClient() as client:
             try:
                 response: httpx.Response = await client.get(
@@ -50,6 +52,13 @@ class WaybackModule(BaseModule):
                     snapshot_url: str = (
                         f"https://web.archive.org/web/{timestamp}/{original_url}"
                     )
+
+                    snapshot = {
+                        "timestamp": timestamp,
+                        "fecha": formatted_date,
+                        "url": snapshot_url,
+                        "original": original_url,
+                    }
 
                     callback("[+] ¡Captura histórica encontrada!\n")
                     callback(
@@ -91,4 +100,4 @@ class WaybackModule(BaseModule):
                 return {"status": "error", "error": str(err)}
 
         callback("\n[+] Consulta finalizada.\n")
-        return {"status": "success", "target": target}
+        return {"status": "success", "target": target, "snapshot": snapshot}
