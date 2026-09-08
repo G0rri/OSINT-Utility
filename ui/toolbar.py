@@ -24,6 +24,11 @@ _HEALTH_STYLE: dict[str, tuple[str, str | None]] = {
 }
 
 
+def emoji_de(status: str) -> str:
+    """Icono del estado, sin el espacio inicial que usa la etiqueta del radio."""
+    return _HEALTH_STYLE.get(status, ("", None))[0].strip()
+
+
 class ToolSelector(ctk.CTkTabview):
     """Pestañas de categorías con un radio button por herramienta."""
 
@@ -79,7 +84,6 @@ class ToolSelector(ctk.CTkTabview):
 
         status, msg_key = module.check_health()
         emoji, text_color = _HEALTH_STYLE.get(status, ("", None))
-        msg: str = self._translator.get(msg_key) if msg_key else ""
 
         radio: ctk.CTkRadioButton = ctk.CTkRadioButton(
             self.tab(tab_name),
@@ -92,7 +96,35 @@ class ToolSelector(ctk.CTkTabview):
             radio.configure(text_color=text_color)
         radio.pack(side="left", padx=padx, pady=10)
 
-        tooltip.attach(radio, msg)
+        titulo, cuerpo, pie = self._texto_de_ayuda(spec, status, msg_key)
+        tooltip.attach(radio, cuerpo, title=titulo, footer=pie)
+
+    def _texto_de_ayuda(
+        self, spec: ToolSpec, status: str, msg_key: str
+    ) -> tuple[str, str, str]:
+        """Compone el tooltip de una herramienta.
+
+        El titular dice qué obtienes; el cuerpo explica para qué sirve y qué hay
+        que escribir. El estado de salud solo aparece cuando hay algo que
+        resolver: repetir "el módulo funciona" en cada herramienta es ruido.
+        """
+        t = self._translator
+        titulo: str = t.get(f"{spec.help_key}_desc")
+        cuerpo: str = t.get(f"{spec.help_key}_body")
+
+        necesitas: str = t.get(f"{spec.help_key}_needs")
+        te_da: str = t.get(f"{spec.help_key}_gives")
+        cuerpo = (
+            f"{cuerpo}\n\n"
+            f"▸ {t.get('help_needs_label')}: {necesitas}\n"
+            f"▸ {t.get('help_gives_label')}: {te_da}"
+        )
+
+        pie: str = ""
+        if status in ("warning", "error") and msg_key:
+            pie = f"{emoji_de(status)} {t.get(msg_key)}"
+
+        return titulo, cuerpo, pie
 
     def _add_option_checkbox(self, tab_name: str, spec: ToolSpec) -> None:
         """Crea la casilla asociada a una herramienta (oculta hasta seleccionarla)."""

@@ -56,6 +56,9 @@ class ToolSpec:
     category: str
     label_key: str
     placeholder_key: str
+    # Prefijo de las claves de ayuda en los locales. De él se derivan
+    # <prefijo>_desc (titular), _body (explicación), _needs y _gives.
+    help_key: str
     factory: Callable[[], BaseModule]
     option: ToolOption | None = None
     needs_file: bool = False
@@ -83,6 +86,7 @@ TOOLS: tuple[ToolSpec, ...] = (
         category="identities",
         label_key="holehe_desc",
         placeholder_key="placeholder_holehe",
+        help_key="help_holehe",
         factory=HoleheModule,
         consume=(Entidad.EMAIL,),
         produce=(Entidad.SERVICIO, Entidad.BRECHA, Entidad.URL),
@@ -93,6 +97,7 @@ TOOLS: tuple[ToolSpec, ...] = (
         category="identities",
         label_key="sherlock_desc",
         placeholder_key="placeholder_sherlock",
+        help_key="help_sherlock",
         factory=SherlockModule,
         consume=(Entidad.USERNAME,),
         produce=(Entidad.URL,),
@@ -103,6 +108,7 @@ TOOLS: tuple[ToolSpec, ...] = (
         category="identities",
         label_key="phoneinfoga_desc",
         placeholder_key="placeholder_phoneinfoga",
+        help_key="help_phoneinfoga",
         factory=PhoneInfogaModule,
         option=ToolOption(
             label_key="chk_google_search",
@@ -116,6 +122,7 @@ TOOLS: tuple[ToolSpec, ...] = (
         category="network",
         label_key="virustotal_desc",
         placeholder_key="placeholder_virustotal",
+        help_key="help_virustotal",
         factory=VirustotalModule,
         consume=(Entidad.DOMINIO, Entidad.IP),
     ),
@@ -124,6 +131,7 @@ TOOLS: tuple[ToolSpec, ...] = (
         category="network",
         label_key="whois_desc",
         placeholder_key="placeholder_whois",
+        help_key="help_whois",
         factory=WhoisDnsModule,
         consume=(Entidad.DOMINIO,),
         produce=(Entidad.IP, Entidad.DOMINIO),
@@ -134,6 +142,7 @@ TOOLS: tuple[ToolSpec, ...] = (
         category="network",
         label_key="subdomains_desc",
         placeholder_key="placeholder_subdomains",
+        help_key="help_subdomains",
         factory=SubdomainModule,
         consume=(Entidad.DOMINIO,),
         produce=(Entidad.DOMINIO,),
@@ -144,6 +153,7 @@ TOOLS: tuple[ToolSpec, ...] = (
         category="network",
         label_key="ports_desc",
         placeholder_key="placeholder_ports",
+        help_key="help_ports",
         factory=PortScannerModule,
         consume=(Entidad.DOMINIO, Entidad.IP),
         produce=(Entidad.IP, Entidad.PUERTO),
@@ -154,6 +164,7 @@ TOOLS: tuple[ToolSpec, ...] = (
         category="network",
         label_key="headers_desc",
         placeholder_key="placeholder_headers",
+        help_key="help_headers",
         factory=SecurityHeadersModule,
         option=ToolOption(
             label_key="chk_insecure_ssl",
@@ -167,6 +178,7 @@ TOOLS: tuple[ToolSpec, ...] = (
         category="forensics",
         label_key="metadata_desc",
         placeholder_key="placeholder_metadata",
+        help_key="help_metadata",
         factory=MetadataModule,
         needs_file=True,
         consume=(Entidad.FICHERO,),
@@ -178,6 +190,7 @@ TOOLS: tuple[ToolSpec, ...] = (
         category="forensics",
         label_key="wayback_desc",
         placeholder_key="placeholder_wayback",
+        help_key="help_wayback",
         factory=WaybackModule,
         consume=(Entidad.DOMINIO, Entidad.URL),
         produce=(Entidad.URL,),

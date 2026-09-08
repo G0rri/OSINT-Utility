@@ -65,6 +65,10 @@ def test_todas_las_claves_de_traduccion_existen(lang: str) -> None:
         assert spec.placeholder_key in catalog, (
             f"{spec.key}: falta '{spec.placeholder_key}' en {lang}.json"
         )
+        # El tooltip de ayuda deriva cuatro claves del mismo prefijo.
+        for sufijo in ("_desc", "_body", "_needs", "_gives"):
+            clave = f"{spec.help_key}{sufijo}"
+            assert clave in catalog, f"{spec.key}: falta '{clave}' en {lang}.json"
         if spec.option is not None:
             assert spec.option.label_key in catalog, (
                 f"{spec.key}: falta '{spec.option.label_key}' en {lang}.json"
@@ -99,6 +103,34 @@ def test_las_opciones_apuntan_a_metodos_existentes(registry: ToolRegistry) -> No
         )
         setter(True)
         setter(False)
+
+
+@pytest.mark.parametrize("lang", LANGS)
+def test_los_titulares_de_ayuda_dicen_que_obtienes(lang: str) -> None:
+    """El titular describe el resultado, no el nombre de la herramienta.
+
+    Repetir la etiqueta del radio en el tooltip no aporta nada; el titular tiene
+    que responder a "¿para qué me sirve esto?".
+    """
+    catalog = _catalog(lang)
+    for spec in TOOLS:
+        titular = catalog[f"{spec.help_key}_desc"]
+        etiqueta = catalog[spec.label_key]
+        assert titular.lower() != etiqueta.lower(), (
+            f"{spec.key}: el titular repite la etiqueta '{etiqueta}'"
+        )
+        assert len(titular.split()) >= 3, (
+            f"{spec.key}: el titular '{titular}' es demasiado escueto"
+        )
+
+
+@pytest.mark.parametrize("lang", LANGS)
+def test_toda_ayuda_indica_que_escribir_y_que_esperar(lang: str) -> None:
+    catalog = _catalog(lang)
+    for spec in TOOLS:
+        for sufijo in ("_body", "_needs", "_gives"):
+            texto = catalog[f"{spec.help_key}{sufijo}"]
+            assert texto.strip(), f"{spec.key}{sufijo} está vacío"
 
 
 def test_solo_metadatos_requiere_fichero_local() -> None:

@@ -122,6 +122,32 @@ certificado TLS»* de forma explícita.
 
 ---
 
+## ❔ Qué hace cada herramienta
+
+No hace falta saberlo de memoria: **pasa el ratón por encima de cualquier
+herramienta** y el tooltip te dice, en lenguaje llano, qué obtienes con ella,
+qué tienes que escribir y qué te va a devolver.
+
+```
+Qué servicios tiene expuestos a internet
+
+Un puerto abierto es una puerta por la que ese servidor acepta
+conexiones: 22 es acceso remoto (SSH), 443 es web segura, 3306 es
+una base de datos que quizá no debería verse desde fuera.
+
+Es pasivo: pregunta a la base de datos de Shodan, no envía ni un
+solo paquete al objetivo.
+
+▸ Necesitas: un dominio o una IP
+▸ Te da: lista de puertos abiertos vistos desde fuera
+```
+
+Si a una herramienta le falta algo para funcionar (una API key, un binario), el
+tooltip lo indica al final en ámbar; cuando todo está en orden no dice nada,
+para no repetir lo mismo diez veces.
+
+---
+
 ## 🔗 Cómo encadenar herramientas
 
 La consola subraya en ámbar los hallazgos que la aplicación sabe reutilizar.
@@ -174,7 +200,9 @@ tests/                   Batería de pruebas (sin red real)
 
 1. Crea `modules/mi_modulo.py` heredando de `BaseModule` e implementa
    `check_health()` y `run()`.
-2. Añade sus textos a `locales/es.json` y `locales/en.json`.
+2. Añade sus textos a `locales/es.json` y `locales/en.json`, incluidas las
+   cuatro claves de ayuda: `_desc` (qué obtienes), `_body` (explicación),
+   `_needs` (qué escribir) y `_gives` (qué devuelve).
 3. Añade una entrada `ToolSpec` en `core/registry.py`, declarando qué tipos de
    entidad `consume` y cuáles `produce`.
 4. Si produce algo, escribe su extractor en `core/extractors.py`: recibe el
