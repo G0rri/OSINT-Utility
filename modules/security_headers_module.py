@@ -140,7 +140,21 @@ class SecurityHeadersModule(BaseModule):
                         )
 
                     callback("\n[+] Análisis de cabeceras de seguridad finalizado.\n")
-                    return {"status": "success", "target": target}
+                    # Las cabeceras se devuelven además de imprimirse, para que
+                    # el informe de red pueda componer su resumen sin releer
+                    # la consola.
+                    return {
+                        "status": "success",
+                        "target": target,
+                        "server": server,
+                        "status_code": response.status_code,
+                        "headers": {
+                            "hsts": hsts,
+                            "csp": csp,
+                            "x_frame": x_frame,
+                            "x_content_type": x_content_type,
+                        },
+                    }
 
         except httpx.HTTPStatusError as err:
             logger.error(

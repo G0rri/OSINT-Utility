@@ -193,7 +193,10 @@ def test_los_extractores_toleran_resultados_de_error(spec) -> None:
 
 
 def test_el_catalogo_resuelve_las_acciones_por_tipo(registry: ToolRegistry) -> None:
+    # El informe agrupa varias consultas, pero las sueltas siguen ofreciéndose
+    # al pivotar: a veces solo quieres una cosa concreta.
     assert [s.key for s in registry.herramientas_para(Entidad.IP)] == [
+        "InformeRed",
         "VirusTotal",
         "PortScanner",
     ]

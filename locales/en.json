@@ -91,5 +91,12 @@
   "help_metadata_desc": "The hidden data inside a photo or a PDF",
   "help_metadata_body": "Cameras and software leave information tucked inside files: what took it, when, with which program and, in many photos, the exact GPS coordinates of the place.\n\nIt reads files on your own machine, it downloads nothing.",
   "help_metadata_needs": "the path to an image or PDF (use the folder button)",
-  "help_metadata_gives": "camera, dates, software used and GPS coordinates if present"
+  "help_metadata_gives": "camera, dates, software used and GPS coordinates if present",
+  "informe_desc": "Quick report",
+  "placeholder_informe": "Enter a domain or IP (full report)",
+  "informe_ok": "Report ready. Bundles registration, ports and headers.",
+  "help_informe_desc": "The full picture of a domain or IP",
+  "help_informe_body": "Runs the three fast lookups about a host at once and hands you a report split into sections, instead of three listings in a row:\n\n  Registration    who registered it and where it points\n  Infrastructure  its IP and the ports it exposes\n  Web security    which protections it has in place\n\nAll three run together, so it takes as long as the slowest one (usually 1-2 seconds). If one fails, the other two still come out.\n\nSubdomains are deliberately left out: they are far slower. That search is available separately.",
+  "help_informe_needs": "a domain or an IP. This is the best place to start",
+  "help_informe_gives": "registrar, dates, DNS, IP, open ports and web protections"
 }

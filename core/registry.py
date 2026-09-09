@@ -14,6 +14,7 @@ from core.base_module import BaseModule
 from core.case import Entidad
 from modules.holehe_module import HoleheModule
 from modules.metadata_module import MetadataModule
+from modules.network_report_module import NetworkReportModule
 from modules.phoneinfoga_module import PhoneInfogaModule
 from modules.port_scanner_module import PortScannerModule
 from modules.security_headers_module import SecurityHeadersModule
@@ -62,6 +63,10 @@ class ToolSpec:
     factory: Callable[[], BaseModule]
     option: ToolOption | None = None
     needs_file: bool = False
+    # Oculta en las pestañas, pero disponible para el menú de clic derecho.
+    # Las tres consultas que agrupa el informe de red siguen siendo útiles por
+    # separado cuando se pivota sobre un hallazgo concreto.
+    hidden: bool = False
 
     # Tipos de entidad que la herramienta acepta como objetivo. Es lo que
     # permite ofrecer acciones sobre un hallazgo sin cablear cada cadena a mano.
@@ -118,6 +123,17 @@ TOOLS: tuple[ToolSpec, ...] = (
         consume=(Entidad.TELEFONO,),
     ),
     ToolSpec(
+        key="InformeRed",
+        category="network",
+        label_key="informe_desc",
+        placeholder_key="placeholder_informe",
+        help_key="help_informe",
+        factory=NetworkReportModule,
+        consume=(Entidad.DOMINIO, Entidad.IP),
+        produce=(Entidad.IP, Entidad.DOMINIO, Entidad.PUERTO),
+        extractor=extractors.informe_red,
+    ),
+    ToolSpec(
         key="VirusTotal",
         category="network",
         label_key="virustotal_desc",
@@ -133,6 +149,7 @@ TOOLS: tuple[ToolSpec, ...] = (
         placeholder_key="placeholder_whois",
         help_key="help_whois",
         factory=WhoisDnsModule,
+        hidden=True,
         consume=(Entidad.DOMINIO,),
         produce=(Entidad.IP, Entidad.DOMINIO),
         extractor=extractors.whois_dns,
@@ -155,6 +172,7 @@ TOOLS: tuple[ToolSpec, ...] = (
         placeholder_key="placeholder_ports",
         help_key="help_ports",
         factory=PortScannerModule,
+        hidden=True,
         consume=(Entidad.DOMINIO, Entidad.IP),
         produce=(Entidad.IP, Entidad.PUERTO),
         extractor=extractors.escaner_puertos,
@@ -166,6 +184,7 @@ TOOLS: tuple[ToolSpec, ...] = (
         placeholder_key="placeholder_headers",
         help_key="help_headers",
         factory=SecurityHeadersModule,
+        hidden=True,
         option=ToolOption(
             label_key="chk_insecure_ssl",
             setter="toggle_insecure_ssl",
@@ -234,9 +253,12 @@ class ToolRegistry:
         return [spec for spec in TOOLS if tipo in spec.consume]
 
     def default_for(self, category: str) -> str:
-        """Clave de la herramienta seleccionada por defecto en una categoría."""
-        specs = self.specs_for(category)
-        return specs[0].key if specs else ""
+        """Clave de la herramienta seleccionada por defecto en una categoría.
+
+        Salta las ocultas: no tienen radio, así que no pueden quedar activas.
+        """
+        visibles = [spec for spec in self.specs_for(category) if not spec.hidden]
+        return visibles[0].key if visibles else ""
 
     def __iter__(self):
         return iter(TOOLS)

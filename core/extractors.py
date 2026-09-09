@@ -78,6 +78,18 @@ def escaner_puertos(resultado: dict[str, Any]) -> list[Extraccion]:
     return hallazgos
 
 
+def informe_red(resultado: dict[str, Any]) -> list[Extraccion]:
+    """Combina los hallazgos de las tres consultas que agrupa el informe.
+
+    Reutiliza los extractores de cada componente en lugar de duplicar su lógica,
+    de modo que mejorar uno mejora también el informe.
+    """
+    hallazgos: list[Extraccion] = []
+    hallazgos.extend(whois_dns(resultado.get("whois", {}) or {}))
+    hallazgos.extend(escaner_puertos(resultado.get("puertos", {}) or {}))
+    return hallazgos
+
+
 def wayback(resultado: dict[str, Any]) -> list[Extraccion]:
     snapshot: dict[str, Any] = resultado.get("snapshot", {}) or {}
     url: str = str(snapshot.get("url", "")).strip()

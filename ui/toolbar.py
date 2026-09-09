@@ -72,6 +72,10 @@ class ToolSelector(ctk.CTkTabview):
             )
 
             for spec in self._registry.specs_for(category.key):
+                if spec.hidden:
+                    # Sigue existiendo para el menú de clic derecho; solo no
+                    # ocupa sitio en la pestaña.
+                    continue
                 self._add_tool_radio(tab_name, spec, category.padx)
                 if spec.option is not None:
                     self._add_option_checkbox(tab_name, spec)

@@ -50,11 +50,16 @@ arquitectura de plugins común.
 | **Identidades**  | `Holehe`       | Email                | Consulta ~120 servicios vía la API de Holehe; expone datos de recuperación. |
 |                  | `Sherlock`     | Username             | Correlaciona cuentas de redes sociales y foros por handle.             |
 |                  | `PhoneInfoga`  | Teléfono             | Escáner de números apoyado en APIs externas.                           |
-| **Red y Web**    | `VirusTotal`   | Reputación           | Consulta pasiva a la API v3 de VirusTotal para IPs y dominios.         |
-|                  | `WHOIS / DNS`  | Registros de dominio | Resolución asíncrona de A, MX y TXT junto a los datos del registrador. |
+| **Red y Web**    | `Informe rápido` | Ficha del host     | Agrupa registro, puertos y cabeceras en un informe único (~1-2 s).     |
+|                  | `VirusTotal`   | Reputación           | Consulta pasiva a la API v3 de VirusTotal para IPs y dominios.         |
 |                  | `Subdominios`  | Infraestructura      | Descubrimiento vía crt.sh y HackerTarget, con grafo interactivo.       |
-|                  | `Port Scanner` | Mapeo pasivo         | Puertos expuestos según Shodan InternetDB (sin enviar tráfico).        |
-|                  | `Cabeceras`    | Hardening HTTP       | Evalúa HSTS, CSP, X-Frame-Options y X-Content-Type-Options.            |
+|                  | ·`WHOIS / DNS` | Registros de dominio | Resolución asíncrona de A, MX y TXT junto a los datos del registrador. |
+|                  | ·`Port Scanner`| Mapeo pasivo         | Puertos expuestos según Shodan InternetDB (sin enviar tráfico).        |
+|                  | ·`Cabeceras`   | Hardening HTTP       | Evalúa HSTS, CSP, X-Frame-Options y X-Content-Type-Options.            |
+
+Las tres marcadas con `·` no tienen botón propio: las agrupa el informe rápido.
+Siguen disponibles por separado en el menú de clic derecho, cuando pivotas sobre
+un hallazgo y solo quieres una consulta concreta.
 |                  | `Wayback`      | Línea temporal       | Localiza la captura más antigua en Archive.org.                        |
 | **Forense**      | `Metadatos`    | Ficheros locales     | Extracción de EXIF/GPS en imágenes y del diccionario /Info en PDF.     |
 
@@ -145,6 +150,50 @@ solo paquete al objetivo.
 Si a una herramienta le falta algo para funcionar (una API key, un binario), el
 tooltip lo indica al final en ámbar; cuando todo está en orden no dice nada,
 para no repetir lo mismo diez veces.
+
+---
+
+## 📋 El informe de red
+
+En la pestaña de Red, **Informe rápido** es el punto de entrada: escribe un
+dominio o una IP y lanza a la vez las tres consultas rápidas, presentando el
+resultado por secciones en lugar de tres listados seguidos.
+
+```
+── Registro ───────────────────────────────────
+   Registrador      MarkMonitor, Inc.
+   Alta             2007-10-09
+   Caducidad        2028-10-09
+   Servidores DNS   dns1.p08.nsone.net  (+7)
+
+── Infraestructura ────────────────────────────
+   IP               140.82.121.3
+   Puertos          22, 80, 443
+
+── Seguridad web ──────────────────────────────
+   HSTS             ✔ presente
+   CSP              ✔ presente
+   ...
+   [+] Todas las protecciones comprobadas están puestas.
+
+   Completado en 0.9 s · 3 de 3 consultas correctas
+```
+
+Las tres se lanzan en paralelo, así que el informe tarda lo que la más lenta y
+no la suma. Si una falla, su sección se marca sin datos y las otras dos salen
+igualmente.
+
+**Los subdominios quedan fuera a propósito.** Medido sobre varios dominios:
+
+| Consulta    | Tiempo        |
+| :---------- | :------------ |
+| Cabeceras   | 0,2 s         |
+| Puertos     | 0,3 s         |
+| WHOIS/DNS   | 1,0 – 10,7 s  |
+| Subdominios | 2,4 – 14,4 s  |
+
+Incluirlos penalizaría cada informe por un dato que no siempre hace falta.
+Cuando lo necesites, tienes esa búsqueda en su propio botón.
 
 ---
 

@@ -91,5 +91,12 @@
   "help_metadata_desc": "Los datos ocultos dentro de una foto o un PDF",
   "help_metadata_body": "Las cámaras y los programas dejan información escondida en los ficheros: con qué se hizo, cuándo, con qué programa y, en muchas fotos, las coordenadas GPS exactas del lugar.\n\nAnaliza ficheros de tu propio equipo, no descarga nada.",
   "help_metadata_needs": "la ruta de una imagen o PDF (usa el botón de la carpeta)",
-  "help_metadata_gives": "cámara, fechas, programa usado y coordenadas GPS si las hay"
+  "help_metadata_gives": "cámara, fechas, programa usado y coordenadas GPS si las hay",
+  "informe_desc": "Informe rápido",
+  "placeholder_informe": "Ingresa un dominio o IP (informe completo)",
+  "informe_ok": "Informe operativo. Agrupa registro, puertos y cabeceras.",
+  "help_informe_desc": "La ficha completa de un dominio o IP",
+  "help_informe_body": "Hace de una vez las tres consultas rápidas sobre un host y te devuelve un informe ordenado por secciones, en vez de tres listados seguidos:\n\n  Registro         quién lo registró y a qué apunta\n  Infraestructura  su IP y los puertos que expone\n  Seguridad web    qué protecciones lleva puestas\n\nLas tres se lanzan a la vez, así que tarda lo que la más lenta (normalmente 1-2 segundos). Si una falla, las otras dos siguen saliendo.\n\nLos subdominios no entran aquí a propósito: son mucho más lentos. Tienes esa búsqueda aparte.",
+  "help_informe_needs": "un dominio o una IP. Es el mejor sitio por donde empezar",
+  "help_informe_gives": "registrador, fechas, DNS, IP, puertos abiertos y protecciones web"
 }

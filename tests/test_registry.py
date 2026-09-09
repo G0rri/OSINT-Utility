@@ -143,7 +143,38 @@ def test_spec_desconocida_devuelve_none(registry: ToolRegistry) -> None:
     assert registry.module("NoExiste") is None
 
 
-def test_los_defaults_son_la_primera_herramienta(registry: ToolRegistry) -> None:
+def test_los_defaults_son_la_primera_herramienta_visible(
+    registry: ToolRegistry,
+) -> None:
     assert registry.default_for("identities") == "Holehe"
-    assert registry.default_for("network") == "VirusTotal"
+    assert registry.default_for("network") == "InformeRed"
     assert registry.default_for("forensics") == "Metadatos"
+
+
+def test_el_default_nunca_es_una_herramienta_oculta(registry: ToolRegistry) -> None:
+    """Una oculta no tiene radio, así que no puede quedar seleccionada."""
+    for category in CATEGORIES:
+        clave = registry.default_for(category.key)
+        spec = registry.spec(clave)
+        assert spec is not None and not spec.hidden, (
+            f"{category.key} arranca con '{clave}', que está oculta"
+        )
+
+
+def test_toda_categoria_tiene_alguna_herramienta_visible(
+    registry: ToolRegistry,
+) -> None:
+    for category in CATEGORIES:
+        visibles = [s for s in registry.specs_for(category.key) if not s.hidden]
+        assert visibles, f"la pestaña {category.key} quedaría vacía"
+
+
+def test_las_ocultas_siguen_siendo_pivotables(registry: ToolRegistry) -> None:
+    """Ocultarlas es una decisión de interfaz, no quitarlas del catálogo."""
+    ocultas = [s for s in TOOLS if s.hidden]
+    assert {s.key for s in ocultas} == {"WHOIS", "PortScanner", "SecurityHeaders"}
+    for spec in ocultas:
+        for tipo in spec.consume:
+            assert spec in registry.herramientas_para(tipo), (
+                f"{spec.key} dejó de ofrecerse al pivotar sobre {tipo}"
+            )
